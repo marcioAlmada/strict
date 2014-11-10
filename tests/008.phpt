@@ -11,7 +11,7 @@ function test(boolean $bool) {
 test(1.1);
 ?>
 --EXPECTF--
-Fatal error: Uncaught exception 'strict\TypeException' with message 'expected boolean and received double' in %s:4
+Fatal error: Uncaught exception 'strict\TypeException' with message 'illegal implicit cast from double to boolean' in %s:4
 Stack trace:
 #0 %s(4): strict\Boolean->__construct(1.1)
 #1 %s(8): test(1.1)

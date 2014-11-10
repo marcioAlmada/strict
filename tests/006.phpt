@@ -11,7 +11,7 @@ function test(string $str) {
 test(1.1);
 ?>
 --EXPECTF--
-Fatal error: Uncaught exception 'strict\TypeException' with message 'expected string and received double' in %s:4
+Fatal error: Uncaught exception 'strict\TypeException' with message 'illegal implicit cast from double to string' in %s:4
 Stack trace:
 #0 %s(4): strict\String->__construct(1.1)
 #1 %s(8): test(1.1)

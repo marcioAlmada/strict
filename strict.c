@@ -168,35 +168,20 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
     switch (type) {
         case _IS_BOOL:
             if (Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
-                zend_throw_exception_ex(ce_TypeException, _IS_BOOL TSRMLS_CC,
-                    "expected boolean and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
+                zend_throw_exception_ex(ce_TypeException, type TSRMLS_CC,
+                    "illegal implicit cast from %s to boolean", 
+                    zend_get_type_by_const(Z_TYPE_P(value)));
                 return;
             }
         break;
         
-        case IS_STRING:
-            if (Z_TYPE_P(value) != IS_STRING) {
-                 zend_throw_exception_ex(ce_TypeException, IS_STRING TSRMLS_CC,
-                    "expected string and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
-                 return;
-            }
-        break;
-        
-        case IS_LONG:
-            if (Z_TYPE_P(value) != IS_LONG) {
-                 zend_throw_exception_ex(ce_TypeException, IS_LONG TSRMLS_CC,
-                    "expected integer and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
-                 return;
-            }
-        break;
-        
-        case IS_DOUBLE:
-            if (Z_TYPE_P(value) != IS_DOUBLE) {
-                 zend_throw_exception_ex(ce_TypeException, IS_DOUBLE TSRMLS_CC,
-                    "expected double and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
-                 return;
-            }
-        break;
+        default: if (Z_TYPE_P(value) != type) {
+             zend_throw_exception_ex(ce_TypeException, type TSRMLS_CC,
+                "illegal implicit cast from %s to %s", 
+                zend_get_type_by_const(Z_TYPE_P(value)),
+                zend_get_type_by_const(type));
+            return;
+        }  
     }
     
     autobox->value = *value;
@@ -248,7 +233,8 @@ PHP_METHOD(Autobox, setValue) {
     if (autobox->type) {
         zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
             "illegal attempt to set value more than once, already set to %s",
-            zend_get_type_by_const(autobox->type));
+            autobox->type == _IS_BOOL ? 
+                "boolean" : zend_get_type_by_const(autobox->type));
         return;
     }
     
