@@ -111,6 +111,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 #define php_strict_autobox_fetch(t) ((php_strict_autobox_t*) Z_OBJ_P(t))
 #define php_strict_autobox_this()   php_strict_autobox_fetch(getThis())
 
+/* {{{ */
 static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRMLS_DC) {
     php_strict_autobox_t *autobox = php_strict_autobox_fetch(read);
 
@@ -188,8 +189,9 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
     autobox->type  = type;
 
     zval_copy_ctor(&autobox->value);
-}
+} /* }}} */
 
+/* {{{ */
 #define AUTOBOX_CONSTRUCTOR(c, t) PHP_METHOD(c, __construct) { \
     php_strict_autobox_t *autobox = php_strict_autobox_this(); \
     zval *value; \
@@ -204,8 +206,9 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
 AUTOBOX_CONSTRUCTOR(Integer, IS_LONG)
 AUTOBOX_CONSTRUCTOR(String,  IS_STRING)
 AUTOBOX_CONSTRUCTOR(Double,  IS_DOUBLE)
-AUTOBOX_CONSTRUCTOR(Boolean, _IS_BOOL)
+AUTOBOX_CONSTRUCTOR(Boolean, _IS_BOOL) /* }}} */
 
+/* {{{ */
 ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_no_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -216,8 +219,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_setValue_arginfo, 0, 0, 2)
     ZEND_ARG_INFO(0, type)
     ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
+ZEND_END_ARG_INFO() /* }}} */
 
+/* {{{ proto void Autobox::setValue(integer type, mixed value) */
 PHP_METHOD(Autobox, setValue) {
     uint32_t type = 0;
     zval     *value = NULL;
@@ -239,8 +243,9 @@ PHP_METHOD(Autobox, setValue) {
     }
     
     php_strict_autobox_ctor(autobox, (zend_uchar) type, value TSRMLS_CC);
-}
+} /* }}} */
 
+/* {{{ proto mixed Autobox::getValue(void) */
 PHP_METHOD(Autobox, getValue) {
     php_strict_autobox_t *autobox;
     
@@ -256,8 +261,9 @@ PHP_METHOD(Autobox, getValue) {
     if (autobox->type == IS_STRING) {
         zval_copy_ctor(return_value);
     }
-}
+} /* }}} */
 
+/* {{{ proto integer Autobox::getType(void) */
 PHP_METHOD(Autobox, getType) {
     php_strict_autobox_t *autobox;
     
@@ -269,8 +275,9 @@ PHP_METHOD(Autobox, getType) {
         php_strict_autobox_this();
     
     RETURN_LONG(autobox->type);
-}
+} /* }}} */
 
+/* {{{ */
 zend_function_entry php_strict_autobox_methods[] = {
     ZEND_ME(Autobox, setValue, php_strict_autobox_setValue_arginfo, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
     ZEND_ME(Autobox, getValue, php_strict_autobox_no_arginfo,       ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
@@ -296,12 +303,11 @@ zend_function_entry php_strict_double_methods[] = {
 zend_function_entry php_strict_boolean_methods[] = {
     ZEND_ME(Boolean, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
     ZEND_FE_END
-};
+}; /* }}} */
 
 /* {{{ PHP_MINIT_FUNCTION
  */
-PHP_MINIT_FUNCTION(strict)
-{
+PHP_MINIT_FUNCTION(strict) {
     zend_class_entry ce;    
 
     ZEND_INIT_MODULE_GLOBALS(strict, php_strict_init_globals, NULL);
@@ -343,21 +349,16 @@ PHP_MINIT_FUNCTION(strict)
     zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
 
 	return SUCCESS;
-}
-/* }}} */
+} /* }}} */
 
-/* {{{ PHP_MINFO_FUNCTION
- */
-PHP_MINFO_FUNCTION(strict)
-{
+/* {{{ PHP_MINFO_FUNCTION */
+PHP_MINFO_FUNCTION(strict) {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "strict support", "enabled");
 	php_info_print_table_end();
-}
-/* }}} */
+} /* }}} */
 
-/* {{{ strict_module_entry
- */
+/* {{{ strict_module_entry */
 zend_module_entry strict_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"strict",
@@ -369,8 +370,7 @@ zend_module_entry strict_module_entry = {
 	PHP_MINFO(strict),
 	PHP_STRICT_VERSION,
 	STANDARD_MODULE_PROPERTIES
-};
-/* }}} */
+}; /* }}} */
 
 #ifdef COMPILE_DL_STRICT
 ZEND_GET_MODULE(strict)
