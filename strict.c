@@ -165,7 +165,6 @@ static inline zend_object* php_strict_autobox_new(zend_class_entry *ce TSRMLS_DC
 }
 
 static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_uchar type, zval *value TSRMLS_DC) {
-    
     switch (type) {
         case _IS_BOOL:
             if (Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
