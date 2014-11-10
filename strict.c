@@ -114,24 +114,12 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRMLS_DC) {
     php_strict_autobox_t *autobox = php_strict_autobox_fetch(read);
     
-    switch (type) {
-        case IS_STRING:
-            if (autobox->type == type) {
-                *write = autobox->value;
-                zval_copy_ctor(write);
-                
-                return SUCCESS;
-            }
-        break;
-        
-        case IS_LONG:
-        case IS_DOUBLE:
-        case _IS_BOOL:
-            if (autobox->type == type) {
-                *write = autobox->value;
-                return SUCCESS;
-            }
-        break;
+    if (autobox->type == type) {
+        *write = autobox->value;
+        if (autobox->type == IS_STRING) {
+            zval_copy_ctor(write);
+        }
+        return SUCCESS;
     }
     
     zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
