@@ -222,6 +222,9 @@ AUTOBOX_CONSTRUCTOR(String,  IS_STRING)
 AUTOBOX_CONSTRUCTOR(Double,  IS_DOUBLE)
 AUTOBOX_CONSTRUCTOR(Boolean, _IS_BOOL)
 
+ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_no_arginfo, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_construct_arginfo, 0, 0, 1)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
@@ -253,8 +256,40 @@ PHP_METHOD(Autobox, setValue) {
     php_strict_autobox_ctor(autobox, (zend_uchar) type, value TSRMLS_CC);
 }
 
+PHP_METHOD(Autobox, getValue) {
+    php_strict_autobox_t *autobox;
+    
+    if (zend_parse_parameters_none() != SUCCESS) {
+        return;
+    }
+    
+    autobox = 
+        php_strict_autobox_this();
+    
+    *return_value = autobox->value;
+    
+    if (autobox->type == IS_STRING) {
+        zval_copy_ctor(return_value);
+    }
+}
+
+PHP_METHOD(Autobox, getType) {
+    php_strict_autobox_t *autobox;
+    
+    if (zend_parse_parameters_none() != SUCCESS) {
+        return;
+    }
+    
+    autobox =
+        php_strict_autobox_this();
+    
+    RETURN_LONG(autobox->type);
+}
+
 zend_function_entry php_strict_autobox_methods[] = {
     ZEND_ME(Autobox, setValue, php_strict_autobox_setValue_arginfo, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
+    ZEND_ME(Autobox, getValue, php_strict_autobox_no_arginfo,       ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
+    ZEND_ME(Autobox, getType,  php_strict_autobox_no_arginfo,       ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
     ZEND_FE_END
 };
 
