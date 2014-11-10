@@ -107,7 +107,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-#define php_strict_autobox_alloc()  (php_strict_autobox_t*) emalloc(sizeof(php_strict_autobox_t))
+#define php_strict_autobox_alloc()  (php_strict_autobox_t*) ecalloc(1, sizeof(php_strict_autobox_t))
 #define php_strict_autobox_fetch(t) ((php_strict_autobox_t*) Z_OBJ_P(t))
 #define php_strict_autobox_this()   php_strict_autobox_fetch(getThis())
 
@@ -121,8 +121,8 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
         }
     } else {
         zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
-            "illegal cast to %s from %s", 
-            zend_get_type_by_const(type), 
+            "illegal cast to %s from %s",
+            zend_get_type_by_const(type),
             zend_get_type_by_const(autobox->type));
     }
 
@@ -242,6 +242,13 @@ PHP_METHOD(Autobox, setValue) {
     
     autobox = 
         php_strict_autobox_this();
+    
+    if (autobox->type) {
+        zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
+            "illegal attempt to set value more than once, already set to %s",
+            zend_get_type_by_const(autobox->type));
+        return;
+    }
     
     php_strict_autobox_ctor(autobox, (zend_uchar) type, value TSRMLS_CC);
 }
