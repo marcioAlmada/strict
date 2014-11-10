@@ -173,7 +173,6 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
                     "expected boolean and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
                 return;
             }
-                
         break;
         
         case IS_STRING:
@@ -200,10 +199,6 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
             }
         break;
     }
-    
-    //if (Z_TYPE(autobox->value)) {
-       // zval_dtor(&autobox->value);
-    //}
     
     autobox->value = *value;
     autobox->type  = type;
@@ -252,7 +247,7 @@ PHP_METHOD(Autobox, setValue) {
 }
 
 zend_function_entry php_strict_autobox_methods[] = {
-    ZEND_ME(Autobox, setValue, php_strict_autobox_setValue_arginfo, ZEND_ACC_PUBLIC)
+    ZEND_ME(Autobox, setValue, php_strict_autobox_setValue_arginfo, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
     ZEND_FE_END
 };
 
