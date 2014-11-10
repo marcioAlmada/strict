@@ -25,6 +25,7 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+#include "Zend/zend_exceptions.h"
 #include "php_strict.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(strict)
@@ -34,6 +35,7 @@ zend_class_entry *ce_Integer;
 zend_class_entry *ce_Double;
 zend_class_entry *ce_Boolean;
 zend_class_entry *ce_String;
+zend_class_entry *ce_TypeException;
 
 /* {{{ php_strict_init_globals
  */
@@ -98,6 +100,10 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         }
     }
     
+    if (EG(exception)) {
+        return ZEND_USER_OPCODE_CONTINUE;
+    }
+    
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -144,15 +150,18 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
 }
 
 static inline HashTable* php_strict_autobox_debug(zval *object, int *temp TSRMLS_DC) {
-    HashTable *table;
+    HashTable *table = NULL;
     php_strict_autobox_t *autobox = php_strict_autobox_fetch(object);
     
-    ALLOC_HASHTABLE(table);
-    zend_hash_init(table, 1, NULL, ZVAL_PTR_DTOR, 0);
-    zend_hash_str_update(
-        table, "value", sizeof("value")-1, &autobox->value);
+    if (Z_TYPE(autobox->value)) {
+        ALLOC_HASHTABLE(table);
+        zend_hash_init(table, 8, NULL, ZVAL_PTR_DTOR, 0);  
+        
+        zend_hash_str_update(
+            table, "value", sizeof("value")-1, &autobox->value);
 
-    *temp = 1;
+        *temp = 1; 
+    } 
 
     return table;
 }
@@ -173,7 +182,7 @@ static inline zend_object* php_strict_autobox_new(zend_class_entry *ce TSRMLS_DC
     
     zend_object_std_init
         (&autobox->std, ce TSRMLS_CC);
-    
+ 
     autobox->std.handlers = &php_strict_autobox_handlers;
     
     return (zend_object*) autobox;
@@ -184,6 +193,43 @@ ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_construct_arginfo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_uchar type, zval *value TSRMLS_DC) {
+    ZVAL_NULL(&autobox->value);
+    
+    switch (type) {
+        case _IS_BOOL:
+            if (Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
+                zend_throw_exception_ex(ce_TypeException, _IS_BOOL TSRMLS_CC,
+                    "expected boolean and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
+                return;
+            }
+                
+        break;
+        
+        case IS_STRING:
+            if (Z_TYPE_P(value) != IS_STRING) {
+                 zend_throw_exception_ex(ce_TypeException, IS_STRING TSRMLS_CC,
+                    "expected string and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
+                 return;
+            }
+        break;
+        
+        case IS_LONG:
+            if (Z_TYPE_P(value) != IS_LONG) {
+                 zend_throw_exception_ex(ce_TypeException, IS_LONG TSRMLS_CC,
+                    "expected integer and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
+                 return;
+            }
+        break;
+        
+        case IS_DOUBLE:
+            if (Z_TYPE_P(value) != IS_DOUBLE) {
+                 zend_throw_exception_ex(ce_TypeException, IS_DOUBLE TSRMLS_CC,
+                    "expected double and received %s", zend_get_type_by_const(Z_TYPE_P(value)));
+                 return;
+            }
+        break;
+    }
+    
     autobox->value = *value;
     autobox->type  = type;
 
@@ -230,7 +276,7 @@ PHP_METHOD(Boolean, __construct) {
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
         return;
     }
-    
+
     php_strict_autobox_ctor(autobox, _IS_BOOL, value TSRMLS_CC);
 }
 
@@ -263,6 +309,10 @@ PHP_MINIT_FUNCTION(strict)
     
     ZEND_INIT_MODULE_GLOBALS(strict, php_strict_init_globals, NULL);
     
+    INIT_NS_CLASS_ENTRY(ce, "strict", "TypeException", NULL);
+    ce_TypeException = zend_register_internal_class_ex(
+        &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
+
     INIT_NS_CLASS_ENTRY(ce, "strict", "Autobox", NULL);
     ce_Autobox = 
         zend_register_internal_class(&ce TSRMLS_CC);
@@ -276,7 +326,7 @@ PHP_MINIT_FUNCTION(strict)
     ce_String = 
         zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC);
     
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Double", php_strict_string_methods);
+    INIT_NS_CLASS_ENTRY(ce, "strict", "Double", php_strict_double_methods);
     ce_Double = 
         zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC);
     
