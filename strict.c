@@ -312,11 +312,6 @@ zend_function_entry php_strict_boolean_methods[] = {
     ZEND_FE_END
 };
 
-#define PHP_STRICT_AUTOBOX_REGISTER(t, n, m) do {\
-    INIT_NS_CLASS_ENTRY(ce, "strict", n, m); \
-    t = zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC); \
-} while(0)
-
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(strict)
@@ -337,10 +332,17 @@ PHP_MINIT_FUNCTION(strict)
     zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("string"),  IS_STRING TSRMLS_CC);
     zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("boolean"), _IS_BOOL TSRMLS_CC);
 
+#define PHP_STRICT_AUTOBOX_REGISTER(t, n, m) do {\
+    INIT_NS_CLASS_ENTRY(ce, "strict", n, m); \
+    t = zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC); \
+} while(0)
+
     PHP_STRICT_AUTOBOX_REGISTER(ce_Integer, "Integer", php_strict_integer_methods);
     PHP_STRICT_AUTOBOX_REGISTER(ce_String,  "String",  php_strict_string_methods);
     PHP_STRICT_AUTOBOX_REGISTER(ce_Double,  "Double",  php_strict_double_methods);
     PHP_STRICT_AUTOBOX_REGISTER(ce_Boolean, "Boolean", php_strict_boolean_methods);
+
+#undef PHP_STRICT_AUTOBOX_REGISTER
 
     memcpy(
         &php_strict_autobox_handlers, 
