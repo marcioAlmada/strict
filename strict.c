@@ -116,7 +116,7 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
     
     switch (type) {
         case IS_STRING:
-            if (instanceof_function(Z_OBJCE_P(read), ce_String TSRMLS_CC)) {
+            if (instanceof_function(Z_OBJCE_P(read), ce_Autobox TSRMLS_CC)) {
                 *write = autobox->value;
                 zval_copy_ctor(write);
                 
@@ -125,21 +125,9 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
         break;
         
         case IS_LONG:
-            if (instanceof_function(Z_OBJCE_P(read), ce_Integer TSRMLS_CC)) {
-                *write = autobox->value;
-                return SUCCESS;
-            }
-        break;
-        
         case IS_DOUBLE:
-            if (instanceof_function(Z_OBJCE_P(read), ce_Double TSRMLS_CC)) {
-                *write = autobox->value;
-                return SUCCESS;
-            }
-        break;
-        
         case _IS_BOOL:
-            if (instanceof_function(Z_OBJCE_P(read), ce_Boolean TSRMLS_CC)) {
+            if (instanceof_function(Z_OBJCE_P(read), ce_Autobox TSRMLS_CC)) {
                 *write = autobox->value;
                 return SUCCESS;
             }
@@ -180,12 +168,11 @@ static inline zend_object* php_strict_autobox_new(zend_class_entry *ce TSRMLS_DC
         (&autobox->std, ce TSRMLS_CC);
  
     autobox->std.handlers = &php_strict_autobox_handlers;
-    
+
     return (zend_object*) autobox;
 }
 
 static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_uchar type, zval *value TSRMLS_DC) {
-    ZVAL_NULL(&autobox->value);
     
     switch (type) {
         case _IS_BOOL:
@@ -222,6 +209,10 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
         break;
     }
     
+    //if (Z_TYPE(autobox->value)) {
+       // zval_dtor(&autobox->value);
+    //}
+    
     autobox->value = *value;
     autobox->type  = type;
 
@@ -247,6 +238,31 @@ AUTOBOX_CONSTRUCTOR(Boolean, _IS_BOOL)
 ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_construct_arginfo, 0, 0, 1)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_setValue_arginfo, 0, 0, 2)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(Autobox, setValue) {
+    uint32_t type = 0;
+    zval     *value = NULL;
+    php_strict_autobox_t *autobox;
+    
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &type, &value) != SUCCESS) {
+        return;
+    }
+    
+    autobox = 
+        php_strict_autobox_this();
+    
+    php_strict_autobox_ctor(autobox, (zend_uchar) type, value TSRMLS_CC);
+}
+
+zend_function_entry php_strict_autobox_methods[] = {
+    ZEND_ME(Autobox, setValue, php_strict_autobox_setValue_arginfo, ZEND_ACC_PUBLIC)
+    ZEND_FE_END
+};
 
 zend_function_entry php_strict_integer_methods[] = {
     ZEND_ME(Integer, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
@@ -285,9 +301,13 @@ PHP_MINIT_FUNCTION(strict)
     ce_TypeException = zend_register_internal_class_ex(
         &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
 
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Autobox", NULL);
+    INIT_NS_CLASS_ENTRY(ce, "strict", "Autobox", php_strict_autobox_methods);
     ce_Autobox = zend_register_internal_class(&ce TSRMLS_CC);
     ce_Autobox->create_object = php_strict_autobox_new;
+    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("integer"), IS_LONG TSRMLS_CC);
+    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("double"),  IS_DOUBLE TSRMLS_CC);
+    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("string"),  IS_STRING TSRMLS_CC);
+    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("boolean"), _IS_BOOL TSRMLS_CC);
 
     PHP_STRICT_AUTOBOX_REGISTER(ce_Integer, "Integer", php_strict_integer_methods);
     PHP_STRICT_AUTOBOX_REGISTER(ce_String,  "String",  php_strict_string_methods);
