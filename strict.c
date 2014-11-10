@@ -116,7 +116,7 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
     
     switch (type) {
         case IS_STRING:
-            if (instanceof_function(Z_OBJCE_P(read), ce_Autobox TSRMLS_CC)) {
+            if (autobox->type == type) {
                 *write = autobox->value;
                 zval_copy_ctor(write);
                 
@@ -127,14 +127,19 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
         case IS_LONG:
         case IS_DOUBLE:
         case _IS_BOOL:
-            if (instanceof_function(Z_OBJCE_P(read), ce_Autobox TSRMLS_CC)) {
+            if (autobox->type == type) {
                 *write = autobox->value;
                 return SUCCESS;
             }
         break;
     }
+    
+    zend_throw_exception_ex(ce_TypeException, IS_STRING TSRMLS_CC,
+        "illegal cast to %s from %s", 
+        zend_get_type_by_const(type), 
+        zend_get_type_by_const(autobox->type));
  
-    return FAILURE;
+    return SUCCESS;
 }
 
 static inline HashTable* php_strict_autobox_debug(zval *object, int *temp TSRMLS_DC) {
