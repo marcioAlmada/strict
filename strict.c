@@ -145,7 +145,7 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
             }
         break;
     }
-    
+ 
     return FAILURE;
 }
 
@@ -166,16 +166,10 @@ static inline HashTable* php_strict_autobox_debug(zval *object, int *temp TSRMLS
     return table;
 }
 
-static inline void php_strict_autobox_free(zend_object *object TSRMLS_DC) {
-    zend_object_std_dtor(object TSRMLS_CC);
-
-}
-
 static inline void php_strict_autobox_dtor(zend_object *object TSRMLS_DC) {
     php_strict_autobox_t *autobox = (php_strict_autobox_t*) object;
-    
-    zval_dtor(&autobox->value);
 
+    zval_dtor(&autobox->value);
     zend_objects_destroy_object(object TSRMLS_CC);
 }
 
@@ -189,10 +183,6 @@ static inline zend_object* php_strict_autobox_new(zend_class_entry *ce TSRMLS_DC
     
     return (zend_object*) autobox;
 }
-
-ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_construct_arginfo, 0, 0, 1)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
 
 static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_uchar type, zval *value TSRMLS_DC) {
     ZVAL_NULL(&autobox->value);
@@ -238,49 +228,25 @@ static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_u
     zval_copy_ctor(&autobox->value);
 }
 
-PHP_METHOD(Integer, __construct) {
-    php_strict_autobox_t *autobox = php_strict_autobox_this();
-    zval *value;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-    
-    php_strict_autobox_ctor(autobox, IS_LONG, value TSRMLS_CC);
+#define AUTOBOX_CONSTRUCTOR(c, t) PHP_METHOD(c, __construct) { \
+    php_strict_autobox_t *autobox = php_strict_autobox_this(); \
+    zval *value; \
+    \
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) { \
+        return; \
+    } \
+    \
+    php_strict_autobox_ctor(autobox, t, value TSRMLS_CC); \
 }
 
-PHP_METHOD(String, __construct) {
-    php_strict_autobox_t *autobox = php_strict_autobox_this();
-    zval *value;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-    
-    php_strict_autobox_ctor(autobox, IS_STRING, value TSRMLS_CC);
-}
+AUTOBOX_CONSTRUCTOR(Integer, IS_LONG)
+AUTOBOX_CONSTRUCTOR(String,  IS_STRING)
+AUTOBOX_CONSTRUCTOR(Double,  IS_DOUBLE)
+AUTOBOX_CONSTRUCTOR(Boolean, _IS_BOOL)
 
-PHP_METHOD(Double, __construct) {
-    php_strict_autobox_t *autobox = php_strict_autobox_this();
-    zval *value;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-    
-    php_strict_autobox_ctor(autobox, IS_DOUBLE, value TSRMLS_CC);
-}
-
-PHP_METHOD(Boolean, __construct) {
-    php_strict_autobox_t *autobox = php_strict_autobox_this();
-    zval *value;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-
-    php_strict_autobox_ctor(autobox, _IS_BOOL, value TSRMLS_CC);
-}
+ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_construct_arginfo, 0, 0, 1)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
 
 zend_function_entry php_strict_integer_methods[] = {
     ZEND_ME(Integer, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
@@ -302,76 +268,44 @@ zend_function_entry php_strict_boolean_methods[] = {
     ZEND_FE_END
 };
 
+#define PHP_STRICT_AUTOBOX_REGISTER(t, n, m) do {\
+    INIT_NS_CLASS_ENTRY(ce, "strict", n, m); \
+    t = zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC); \
+} while(0)
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(strict)
 {
     zend_class_entry ce;    
-    zend_object_handlers *handlers = zend_get_std_object_handlers();
-    
+
     ZEND_INIT_MODULE_GLOBALS(strict, php_strict_init_globals, NULL);
-    
+
     INIT_NS_CLASS_ENTRY(ce, "strict", "TypeException", NULL);
     ce_TypeException = zend_register_internal_class_ex(
         &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
 
     INIT_NS_CLASS_ENTRY(ce, "strict", "Autobox", NULL);
-    ce_Autobox = 
-        zend_register_internal_class(&ce TSRMLS_CC);
+    ce_Autobox = zend_register_internal_class(&ce TSRMLS_CC);
     ce_Autobox->create_object = php_strict_autobox_new;
-    
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Integer", php_strict_integer_methods);
-    ce_Integer = 
-        zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC);
-        
-    INIT_NS_CLASS_ENTRY(ce, "strict", "String", php_strict_string_methods);
-    ce_String = 
-        zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC);
-    
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Double", php_strict_double_methods);
-    ce_Double = 
-        zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC);
-    
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Boolean", php_strict_boolean_methods);
-    ce_Boolean = 
-        zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC);
-    
-    memcpy(&php_strict_autobox_handlers, handlers, sizeof(zend_object_handlers));
-    
-    php_strict_autobox_handlers.dtor_obj = php_strict_autobox_dtor;
-    php_strict_autobox_handlers.free_obj = php_strict_autobox_free;
+
+    PHP_STRICT_AUTOBOX_REGISTER(ce_Integer, "Integer", php_strict_integer_methods);
+    PHP_STRICT_AUTOBOX_REGISTER(ce_String,  "String",  php_strict_string_methods);
+    PHP_STRICT_AUTOBOX_REGISTER(ce_Double,  "Double",  php_strict_double_methods);
+    PHP_STRICT_AUTOBOX_REGISTER(ce_Boolean, "Boolean", php_strict_boolean_methods);
+
+    memcpy(
+        &php_strict_autobox_handlers, 
+        zend_get_std_object_handlers(), 
+        sizeof(zend_object_handlers));
+
+    php_strict_autobox_handlers.dtor_obj       = php_strict_autobox_dtor;
     php_strict_autobox_handlers.get_debug_info = php_strict_autobox_debug;
-    php_strict_autobox_handlers.cast_object = php_strict_autobox_cast;
+    php_strict_autobox_handlers.cast_object    = php_strict_autobox_cast;
 
     zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
     zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
-    
-	return SUCCESS;
-}
-/* }}} */
 
-/* {{{ PHP_MSHUTDOWN_FUNCTION
- */
-PHP_MSHUTDOWN_FUNCTION(strict)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request start */
-/* {{{ PHP_RINIT_FUNCTION
- */
-PHP_RINIT_FUNCTION(strict)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request end */
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
-PHP_RSHUTDOWN_FUNCTION(strict)
-{
 	return SUCCESS;
 }
 /* }}} */
@@ -393,9 +327,9 @@ zend_module_entry strict_module_entry = {
 	"strict",
 	NULL,
 	PHP_MINIT(strict),
-	PHP_MSHUTDOWN(strict),
-	PHP_RINIT(strict),
-	PHP_RSHUTDOWN(strict),
+	NULL,
+	NULL,
+	NULL,
 	PHP_MINFO(strict),
 	PHP_STRICT_VERSION,
 	STANDARD_MODULE_PROPERTIES
