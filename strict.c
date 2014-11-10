@@ -113,20 +113,19 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 
 static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRMLS_DC) {
     php_strict_autobox_t *autobox = php_strict_autobox_fetch(read);
-    
+
     if (autobox->type == type) {
         *write = autobox->value;
         if (autobox->type == IS_STRING) {
             zval_copy_ctor(write);
         }
-        return SUCCESS;
+    } else {
+        zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
+            "illegal cast to %s from %s", 
+            zend_get_type_by_const(type), 
+            zend_get_type_by_const(autobox->type));
     }
-    
-    zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
-        "illegal cast to %s from %s", 
-        zend_get_type_by_const(type), 
-        zend_get_type_by_const(autobox->type));
- 
+
     return SUCCESS;
 }
 
