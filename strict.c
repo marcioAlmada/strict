@@ -341,7 +341,8 @@ PHP_MINIT_FUNCTION(strict)
     php_strict_autobox_handlers.get_debug_info = php_strict_autobox_debug;
     php_strict_autobox_handlers.cast_object = php_strict_autobox_cast;
 
-    zend_set_user_opcode_handler(ZEND_RECV,      php_strict_handler_recv);
+    zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
+    zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
     
 	return SUCCESS;
 }
