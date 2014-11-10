@@ -134,7 +134,7 @@ static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRM
         break;
     }
     
-    zend_throw_exception_ex(ce_TypeException, IS_STRING TSRMLS_CC,
+    zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
         "illegal cast to %s from %s", 
         zend_get_type_by_const(type), 
         zend_get_type_by_const(autobox->type));
