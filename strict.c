@@ -173,6 +173,8 @@ static inline void php_strict_autobox_free(zend_object *object TSRMLS_DC) {
 
 static inline void php_strict_autobox_dtor(zend_object *object TSRMLS_DC) {
     php_strict_autobox_t *autobox = (php_strict_autobox_t*) object;
+    
+    zval_dtor(&autobox->value);
 
     zend_objects_destroy_object(object TSRMLS_CC);
 }
