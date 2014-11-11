@@ -26,29 +26,17 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "Zend/zend_exceptions.h"
+#include "Zend/zend_extensions.h"
 #include "php_strict.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(strict)
 
-zend_class_entry *ce_Autobox;
-zend_class_entry *ce_Integer;
-zend_class_entry *ce_Double;
-zend_class_entry *ce_Boolean;
-zend_class_entry *ce_String;
-zend_class_entry *ce_TypeException;
+zend_class_entry *ce_StrictException;
 
 /* {{{ php_strict_init_globals
  */
 static void php_strict_init_globals(zend_strict_globals *strict_globals){}
 /* }}} */
-
-typedef struct _php_strict_autobox_t {
-    zend_object std;
-    zend_uchar  type;
-    zval        value;
-} php_strict_autobox_t;
-
-zend_object_handlers php_strict_autobox_handlers;
 
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
@@ -58,45 +46,34 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         uint32_t             arg      = opline->op1.num;
         zval                *param    = EX_VAR(opline->result.var);
         zend_arg_info       *info     = &function->common.arg_info[arg-1];
-        
-        if (info->type_hint == IS_OBJECT && Z_TYPE_P(param) != IS_OBJECT) {
-            zend_string      *cname = 
-                zend_string_init(info->class_name, info->class_name_len, 0);
-            zend_class_entry *wants = zend_lookup_class(cname TSRMLS_CC);
+
+        switch (info->type_hint) {
+            case _IS_BOOL:
+                if (Z_TYPE_P(param) != IS_TRUE && Z_TYPE_P(param) != IS_FALSE) {
+                    zend_throw_exception_ex(ce_StrictException, _IS_BOOL TSRMLS_CC,
+                        "illegal implicit cast from %s to boolean at argument %d", 
+                        zend_get_type_by_const(Z_TYPE_P(param)),
+                        arg - 1);
+                } else {
+                    EX(opline)++;
+                    return ZEND_USER_OPCODE_CONTINUE;
+                }
+            break;
             
-            if (wants && instanceof_function(wants, ce_Autobox TSRMLS_CC)) {
-                zval local;
-                zend_function *constructor;
-                zend_fcall_info fci;
-                zend_fcall_info_cache fcc;
-                zval retval;
-                
-                object_init_ex(&local, wants);
-                
-                constructor = Z_OBJ_HT(local)
-                    ->get_constructor(Z_OBJ(local) TSRMLS_CC);
-                
-                memset(&fci, 0, sizeof(zend_fcall_info));
-                memset(&fcc, 0, sizeof(zend_fcall_info_cache));
-                
-                fci.size = sizeof(zend_fcall_info);
-                fci.object = Z_OBJ(local);
-                fci.retval = &retval;
-                
-                zend_fcall_info_argn(&fci TSRMLS_CC, 1, param);
-                
-                fcc.initialized = 1;
-                fcc.function_handler = constructor;
-                fcc.object = Z_OBJ(local);
-                
-                if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
-                    zend_fcall_info_args_clear(&fci, 1);
-                    zval_dtor(&retval);
-                    ZVAL_ZVAL(param, &local, 0, 1);
-                } else zval_dtor(&local);
-            }
-            
-            zend_string_release(cname);
+            case IS_STRING:
+            case IS_DOUBLE:
+            case IS_LONG:
+                if (info->type_hint != Z_TYPE_P(param)) {
+                    zend_throw_exception_ex(ce_StrictException, info->type_hint TSRMLS_CC,
+                        "illegal implicit cast from %s to %s at argument %d", 
+                        zend_get_type_by_const(Z_TYPE_P(param)),
+                        zend_get_type_by_const(info->type_hint),
+                        arg - 1);
+                } else {
+                    EX(opline)++;
+                    return ZEND_USER_OPCODE_CONTINUE;
+                }
+            break;
         }
     }
     
@@ -107,204 +84,6 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-#define php_strict_autobox_alloc()  (php_strict_autobox_t*) ecalloc(1, sizeof(php_strict_autobox_t))
-#define php_strict_autobox_fetch(t) ((php_strict_autobox_t*) Z_OBJ_P(t))
-#define php_strict_autobox_this()   php_strict_autobox_fetch(getThis())
-
-/* {{{ */
-static inline int php_strict_autobox_cast(zval *read, zval *write, int type TSRMLS_DC) {
-    php_strict_autobox_t *autobox = php_strict_autobox_fetch(read);
-
-    if (autobox->type == type) {
-        *write = autobox->value;
-        if (autobox->type == IS_STRING) {
-            zval_copy_ctor(write);
-        }
-    } else {
-        zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
-            "illegal cast from %s to %s",
-            zend_get_type_by_const(Z_TYPE(autobox->value)),
-            zend_get_type_by_const(type));
-    }
-
-    return SUCCESS;
-}
-
-static inline HashTable* php_strict_autobox_debug(zval *object, int *temp TSRMLS_DC) {
-    HashTable *table = NULL;
-    php_strict_autobox_t *autobox = php_strict_autobox_fetch(object);
-    
-    if (Z_TYPE(autobox->value)) {
-        ALLOC_HASHTABLE(table);
-        zend_hash_init(table, 8, NULL, ZVAL_PTR_DTOR, 0);  
-        
-        zend_hash_str_update(
-            table, "value", sizeof("value")-1, &autobox->value);
-
-        *temp = 1; 
-    } 
-
-    return table;
-}
-
-static inline void php_strict_autobox_dtor(zend_object *object TSRMLS_DC) {
-    php_strict_autobox_t *autobox = (php_strict_autobox_t*) object;
-
-    zval_dtor(&autobox->value);
-    zend_objects_destroy_object(object TSRMLS_CC);
-}
-
-static inline zend_object* php_strict_autobox_new(zend_class_entry *ce TSRMLS_DC) {
-    php_strict_autobox_t *autobox = php_strict_autobox_alloc();
-    
-    zend_object_std_init
-        (&autobox->std, ce TSRMLS_CC);
- 
-    autobox->std.handlers = &php_strict_autobox_handlers;
-
-    return (zend_object*) autobox;
-}
-
-static inline void php_strict_autobox_ctor(php_strict_autobox_t *autobox, zend_uchar type, zval *value TSRMLS_DC) {
-    switch (type) {
-        case _IS_BOOL:
-            if (Z_TYPE_P(value) != IS_TRUE && Z_TYPE_P(value) != IS_FALSE) {
-                zend_throw_exception_ex(ce_TypeException, type TSRMLS_CC,
-                    "illegal implicit cast from %s to boolean", 
-                    zend_get_type_by_const(Z_TYPE_P(value)));
-                return;
-            }
-        break;
-        
-        default: if (Z_TYPE_P(value) != type) {
-             zend_throw_exception_ex(ce_TypeException, type TSRMLS_CC,
-                "illegal implicit cast from %s to %s", 
-                zend_get_type_by_const(Z_TYPE_P(value)),
-                zend_get_type_by_const(type));
-            return;
-        }  
-    }
-    
-    autobox->value = *value;
-    autobox->type  = type;
-
-    zval_copy_ctor(&autobox->value);
-} /* }}} */
-
-/* {{{ */
-#define AUTOBOX_CONSTRUCTOR(c, t) PHP_METHOD(c, __construct) { \
-    php_strict_autobox_t *autobox = php_strict_autobox_this(); \
-    zval *value; \
-    \
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) { \
-        return; \
-    } \
-    \
-    php_strict_autobox_ctor(autobox, t, value TSRMLS_CC); \
-}
-
-AUTOBOX_CONSTRUCTOR(Integer, IS_LONG)
-AUTOBOX_CONSTRUCTOR(String,  IS_STRING)
-AUTOBOX_CONSTRUCTOR(Double,  IS_DOUBLE)
-AUTOBOX_CONSTRUCTOR(Boolean, _IS_BOOL) /* }}} */
-
-/* {{{ */
-ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_no_arginfo, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_construct_arginfo, 0, 0, 1)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(php_strict_autobox_setValue_arginfo, 0, 0, 2)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO() /* }}} */
-
-/* {{{ proto void Autobox::setValue(integer type, mixed value) */
-PHP_METHOD(Autobox, setValue) {
-    uint32_t type = 0;
-    zval     *value = NULL;
-    php_strict_autobox_t *autobox;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &type, &value) != SUCCESS) {
-        return;
-    }
-    
-    autobox = 
-        php_strict_autobox_this();
-    
-    if (autobox->type) {
-        zend_throw_exception_ex(ce_TypeException, autobox->type TSRMLS_CC,
-            "illegal attempt to set value more than once, already set to %s",
-            autobox->type == _IS_BOOL ? 
-                "boolean" : zend_get_type_by_const(autobox->type));
-        return;
-    }
-    
-    php_strict_autobox_ctor(autobox, (zend_uchar) type, value TSRMLS_CC);
-} /* }}} */
-
-/* {{{ proto mixed Autobox::getValue(void) */
-PHP_METHOD(Autobox, getValue) {
-    php_strict_autobox_t *autobox;
-    
-    if (zend_parse_parameters_none() != SUCCESS) {
-        return;
-    }
-    
-    autobox = 
-        php_strict_autobox_this();
-    
-    *return_value = autobox->value;
-    
-    if (autobox->type == IS_STRING) {
-        zval_copy_ctor(return_value);
-    }
-} /* }}} */
-
-/* {{{ proto integer Autobox::getType(void) */
-PHP_METHOD(Autobox, getType) {
-    php_strict_autobox_t *autobox;
-    
-    if (zend_parse_parameters_none() != SUCCESS) {
-        return;
-    }
-    
-    autobox =
-        php_strict_autobox_this();
-    
-    RETURN_LONG(autobox->type);
-} /* }}} */
-
-/* {{{ */
-zend_function_entry php_strict_autobox_methods[] = {
-    ZEND_ME(Autobox, setValue, php_strict_autobox_setValue_arginfo, ZEND_ACC_PROTECTED|ZEND_ACC_FINAL)
-    ZEND_ME(Autobox, getValue, php_strict_autobox_no_arginfo,       ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
-    ZEND_ME(Autobox, getType,  php_strict_autobox_no_arginfo,       ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
-    ZEND_FE_END
-};
-
-zend_function_entry php_strict_integer_methods[] = {
-    ZEND_ME(Integer, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
-    ZEND_FE_END
-};
-
-zend_function_entry php_strict_string_methods[] = {
-    ZEND_ME(String, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
-    ZEND_FE_END
-};
-
-zend_function_entry php_strict_double_methods[] = {
-    ZEND_ME(Double, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
-    ZEND_FE_END
-};
-
-zend_function_entry php_strict_boolean_methods[] = {
-    ZEND_ME(Boolean, __construct, php_strict_autobox_construct_arginfo, ZEND_ACC_PUBLIC)
-    ZEND_FE_END
-}; /* }}} */
-
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(strict) {
@@ -312,44 +91,92 @@ PHP_MINIT_FUNCTION(strict) {
 
     ZEND_INIT_MODULE_GLOBALS(strict, php_strict_init_globals, NULL);
 
-    INIT_NS_CLASS_ENTRY(ce, "strict", "TypeException", NULL);
-    ce_TypeException = zend_register_internal_class_ex(
+    INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
+    ce_StrictException = zend_register_internal_class_ex(
         &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
-
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Autobox", php_strict_autobox_methods);
-    ce_Autobox = zend_register_internal_class(&ce TSRMLS_CC);
-    ce_Autobox->create_object = php_strict_autobox_new;
-    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("integer"), IS_LONG TSRMLS_CC);
-    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("double"),  IS_DOUBLE TSRMLS_CC);
-    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("string"),  IS_STRING TSRMLS_CC);
-    zend_declare_class_constant_long(ce_Autobox, ZEND_STRL("boolean"), _IS_BOOL TSRMLS_CC);
-
-#define PHP_STRICT_AUTOBOX_REGISTER(t, n, m) do {\
-    INIT_NS_CLASS_ENTRY(ce, "strict", n, m); \
-    t = zend_register_internal_class_ex(&ce, ce_Autobox TSRMLS_CC); \
-} while(0)
-
-    PHP_STRICT_AUTOBOX_REGISTER(ce_Integer, "Integer", php_strict_integer_methods);
-    PHP_STRICT_AUTOBOX_REGISTER(ce_String,  "String",  php_strict_string_methods);
-    PHP_STRICT_AUTOBOX_REGISTER(ce_Double,  "Double",  php_strict_double_methods);
-    PHP_STRICT_AUTOBOX_REGISTER(ce_Boolean, "Boolean", php_strict_boolean_methods);
-
-#undef PHP_STRICT_AUTOBOX_REGISTER
-
-    memcpy(
-        &php_strict_autobox_handlers, 
-        zend_get_std_object_handlers(), 
-        sizeof(zend_object_handlers));
-
-    php_strict_autobox_handlers.dtor_obj       = php_strict_autobox_dtor;
-    php_strict_autobox_handlers.get_debug_info = php_strict_autobox_debug;
-    php_strict_autobox_handlers.cast_object    = php_strict_autobox_cast;
 
     zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
     zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
 
 	return SUCCESS;
 } /* }}} */
+
+static inline int zend_strict_startup(zend_extension *extension) {
+    TSRMLS_FETCH();
+    
+    zend_startup_module(&strict_module_entry TSRMLS_CC);
+}
+
+static inline void zend_strict_compile(zend_op_array *ops) {
+    TSRMLS_FETCH();
+    
+    if (ops->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
+        
+              zend_arg_info *hint = ops->arg_info,
+                            *end  = &ops->arg_info[ops->num_args];
+
+#define NEXT() \
+    hint++; \
+    continue \
+
+#define IS_TYPE(n) \
+    (zend_binary_strncasecmp(hint->class_name, hint->class_name_len, ZEND_STRL(n), hint->class_name_len) == SUCCESS)
+
+        do {
+            if (IS_TYPE("integer")) {
+                hint->type_hint = IS_LONG;
+                NEXT();
+            }
+            
+            if (IS_TYPE("double")) {
+                hint->type_hint = IS_DOUBLE;
+                NEXT();
+            }
+            
+            if (IS_TYPE("string")) {
+                hint->type_hint = IS_STRING;
+                NEXT();
+            }
+            
+            if (IS_TYPE("boolean")) {
+                hint->type_hint = _IS_BOOL;
+                NEXT();
+            }
+            
+            hint++;
+            
+        } while (hint < end);
+    }
+    
+#undef IS_FOR
+#undef NEXT
+}
+
+#ifndef ZEND_EXT_API
+#define ZEND_EXT_API ZEND_DLEXPORT
+#endif
+
+ZEND_EXTENSION();
+
+ZEND_EXT_API zend_extension zend_extension_entry = {
+	"strict",
+    "0.1",
+    "Joe Watkins <krakjoe@php.net>",
+    "https://github.com/krakjoe/strict",
+    "Copyright (c) 2014",
+    zend_strict_startup,
+    NULL, /* shutdown_func_t */
+    NULL, /* activate_func_t */
+    NULL, /* deactivate_func_t */
+    NULL, /* message_handler_func_t */
+    zend_strict_compile, /* op_array_handler_func_t */
+    NULL, /* statement_handler_func_t */
+    NULL, /* fcall_begin_handler_func_t */
+    NULL, /* fcall_end_handler_func_t */
+    NULL, /* op_array_ctor_func_t */
+    NULL, /* op_array_dtor_func_t */
+    STANDARD_ZEND_EXTENSION_PROPERTIES
+};
 
 /* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(strict) {

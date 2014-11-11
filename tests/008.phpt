@@ -2,20 +2,18 @@
 testing boolean hint disallow
 --FILE--
 <?php
-use strict\Boolean;
-
 function test(boolean $bool) {
-    var_dump($bool, (boolean) $bool);
+    var_dump($bool);
 }
 
 test(1.1);
 ?>
 --EXPECTF--
-Fatal error: Uncaught exception 'strict\TypeException' with message 'illegal implicit cast from double to boolean' in %s:4
+Fatal error: Uncaught exception 'strict\Exception' with message 'illegal implicit cast from double to boolean at argument 0' in %s:2
 Stack trace:
-#0 %s(4): strict\Boolean->__construct(1.1)
-#1 %s(8): test(1.1)
-#2 {main}
-  thrown in %s on line 4
+#0 %s(6): test(1.1)
+#1 {main}
+  thrown in %s on line 2
+
 
 
