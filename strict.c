@@ -112,44 +112,40 @@ static inline void zend_strict_compile(zend_op_array *ops) {
     
     if (ops->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
         
-              zend_arg_info *hint = ops->arg_info,
-                            *end  = &ops->arg_info[ops->num_args];
-
-#define NEXT() \
-    hint++; \
-    continue \
+        zend_arg_info *hint = ops->arg_info,
+                      *end  = &ops->arg_info[ops->num_args];
 
 #define IS_TYPE(n) \
     (zend_binary_strncasecmp(hint->class_name, hint->class_name_len, ZEND_STRL(n), hint->class_name_len) == SUCCESS)
 
+#define SET_TYPE(n) \
+    hint->type_hint = n; \
+    hint++; \
+    continue
+
         do {
-            if (IS_TYPE("integer")) {
-                hint->type_hint = IS_LONG;
-                NEXT();
+            if (IS_TYPE("integer") || IS_TYPE("int")) {
+                SET_TYPE(IS_LONG);
             }
             
-            if (IS_TYPE("double")) {
-                hint->type_hint = IS_DOUBLE;
-                NEXT();
+            if (IS_TYPE("double") || IS_TYPE("float")) {
+                SET_TYPE(IS_DOUBLE);
             }
             
             if (IS_TYPE("string")) {
-                hint->type_hint = IS_STRING;
-                NEXT();
+                SET_TYPE(IS_STRING);
             }
             
-            if (IS_TYPE("boolean")) {
-                hint->type_hint = _IS_BOOL;
-                NEXT();
+            if (IS_TYPE("boolean") || IS_TYPE("bool")) {
+                SET_TYPE(_IS_BOOL);
             }
             
             hint++;
-            
         } while (hint < end);
     }
-    
-#undef IS_FOR
-#undef NEXT
+
+#undef IS_TYPE
+#undef SET_TYPE
 }
 
 #ifndef ZEND_EXT_API
