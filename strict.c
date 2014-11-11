@@ -29,14 +29,7 @@
 #include "Zend/zend_extensions.h"
 #include "php_strict.h"
 
-ZEND_DECLARE_MODULE_GLOBALS(strict)
-
 zend_class_entry *ce_StrictException;
-
-/* {{{ php_strict_init_globals
- */
-static void php_strict_init_globals(zend_strict_globals *strict_globals){}
-/* }}} */
 
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
@@ -89,8 +82,6 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 PHP_MINIT_FUNCTION(strict) {
     zend_class_entry ce;    
 
-    ZEND_INIT_MODULE_GLOBALS(strict, php_strict_init_globals, NULL);
-
     INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
     ce_StrictException = zend_register_internal_class_ex(
         &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
@@ -103,7 +94,6 @@ PHP_MINIT_FUNCTION(strict) {
 
 static inline int zend_strict_startup(zend_extension *extension) {
     TSRMLS_FETCH();
-    
     zend_startup_module(&strict_module_entry TSRMLS_CC);
 }
 
@@ -111,7 +101,6 @@ static inline void zend_strict_compile(zend_op_array *ops) {
     TSRMLS_FETCH();
     
     if (ops->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
-        
         zend_arg_info *hint = ops->arg_info,
                       *end  = &ops->arg_info[ops->num_args];
 
@@ -155,11 +144,11 @@ static inline void zend_strict_compile(zend_op_array *ops) {
 ZEND_EXTENSION();
 
 ZEND_EXT_API zend_extension zend_extension_entry = {
-	"strict",
-    "0.1",
-    "Joe Watkins <krakjoe@php.net>",
-    "https://github.com/krakjoe/strict",
-    "Copyright (c) 2014",
+	PHP_STRICT_EXTNAME,
+    PHP_STRICT_VERSION,
+    PHP_STRICT_AUTHOR,
+    PHP_STRICT_URL,
+    PHP_STRICT_COPY,
     zend_strict_startup,
     NULL, /* shutdown_func_t */
     NULL, /* activate_func_t */

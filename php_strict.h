@@ -25,6 +25,10 @@ extern zend_module_entry strict_module_entry;
 #define phpext_strict_ptr &strict_module_entry
 
 #define PHP_STRICT_VERSION "0.1.0"
+#define PHP_STRICT_EXTNAME "strict"
+#define PHP_STRICT_AUTHOR  "Joe Watkins <krakjoe@php.net>"
+#define PHP_STRICT_URL     "https://github.com/krakjoe/strict"
+#define PHP_STRICT_COPY    "Copyright (c) 2014"
 
 #ifdef PHP_WIN32
 #	define PHP_STRICT_API __declspec(dllexport)
@@ -36,16 +40,6 @@ extern zend_module_entry strict_module_entry;
 
 #ifdef ZTS
 #include "TSRM.h"
-#endif
-
-ZEND_BEGIN_MODULE_GLOBALS(strict)
-	HashTable hints;
-ZEND_END_MODULE_GLOBALS(strict)
-
-#ifdef ZTS
-#define STRICT_G(v) TSRMG(strict_globals_id, zend_strict_globals *, v)
-#else
-#define STRICT_G(v) (strict_globals.v)
 #endif
 
 #endif	/* PHP_STRICT_H */
