@@ -73,6 +73,72 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
+static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
+    const zend_function *function = EX(func);
+    const zend_op       *opline   = EX(opline);
+    uint32_t             arg      = opline->op1.num;
+    uint32_t             args     = EX(num_args);
+    zval                *params   = EX_VAR(opline->result.var);
+    zend_arg_info       *info     = &function->common.arg_info[arg-1];
+    
+    if (arg <= args) {
+        zval *param = 
+            EX_VAR_NUM(EX(func)->op_array.last_var + EX(func)->op_array.T);;
+        
+        if (function->common.fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
+            switch (info->type_hint) {
+                case _IS_BOOL: {
+                    array_init_size(params, args - arg + 1);
+                    do {
+                        if (Z_TYPE_P(param) != IS_TRUE && Z_TYPE_P(param) != IS_FALSE) {
+                            zend_error(E_RECOVERABLE_ERROR, 
+                                "Argument %d passed to %s%s%s must be boolean, %s given",
+                                arg, 
+                                function->common.scope ? function->common.scope->name->val : "",
+                                function->common.scope ? "::" : "",
+                                function->common.function_name->val,
+                                zend_get_type_by_const(Z_TYPE_P(param)));
+                        }
+                        zend_hash_next_index_insert(Z_ARRVAL_P(params), param);
+                        if (Z_REFCOUNTED_P(param)) Z_ADDREF_P(param);
+                        param++;
+                    } while (++arg <= args);
+                    
+                    EX(opline)++;
+                    return ZEND_USER_OPCODE_CONTINUE;
+                } break;
+
+                case IS_RESOURCE:
+                case IS_STRING:
+                case IS_DOUBLE:
+                case IS_LONG: {
+                    array_init_size(params, args - arg + 1);
+                    do {
+                        if (Z_TYPE_P(param) != info->type_hint) {
+                            zend_error(E_RECOVERABLE_ERROR, 
+                                "Argument %d passed to %s%s%s must be %s, %s given",
+                                arg, 
+                                function->common.scope ? function->common.scope->name->val : "",
+                                function->common.scope ? "::" : "",
+                                function->common.function_name->val,
+                                zend_get_type_by_const(info->type_hint),
+                                zend_get_type_by_const(Z_TYPE_P(param)));
+                        }
+                        zend_hash_next_index_insert(Z_ARRVAL_P(params), param);
+                        if (Z_REFCOUNTED_P(param)) Z_ADDREF_P(param);
+                        param++;
+                    } while (++arg <= args);
+                    
+                    EX(opline)++;
+                    return ZEND_USER_OPCODE_CONTINUE;
+                } break;   
+            }   
+        }
+    }
+    
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
 static inline int zend_strict_startup(zend_extension *extension) {
     TSRMLS_FETCH();
     zend_startup_module(&strict_module_entry TSRMLS_CC);
@@ -158,7 +224,8 @@ PHP_MINIT_FUNCTION(strict) {
     }
 
     zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
-    zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
+    zend_set_user_opcode_handler(ZEND_RECV_VARIADIC,  php_strict_handler_variadic);
+
 	return SUCCESS;
 } /* }}} */
 
