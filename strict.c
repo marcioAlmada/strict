@@ -83,7 +83,7 @@ static inline void zend_strict_compile(zend_op_array *ops) {
                       *end  = &ops->arg_info[ops->num_args];
 
 #define IS_TYPE(n) \
-    (zend_binary_strncasecmp(hint->class_name, hint->class_name_len, ZEND_STRL(n), hint->class_name_len) == SUCCESS)
+    (zend_binary_strncasecmp(hint->class_name, hint->class_name_len, ZEND_STRL(n), sizeof(n)-1) == SUCCESS)
 
 #define SET_TYPE(n) \
     hint->type_hint = n; \
@@ -110,7 +110,7 @@ static inline void zend_strict_compile(zend_op_array *ops) {
             if (IS_TYPE("resource")) {
                 SET_TYPE(IS_RESOURCE);
             }
-            
+
             hint++;
         } while (hint < end);
     }
