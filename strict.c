@@ -25,11 +25,8 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
-#include "Zend/zend_exceptions.h"
 #include "Zend/zend_extensions.h"
 #include "php_strict.h"
-
-zend_class_entry *ce_StrictException;
 
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
@@ -43,10 +40,13 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         switch (info->type_hint) {
             case _IS_BOOL: {
                 if (Z_TYPE_P(param) != IS_TRUE && Z_TYPE_P(param) != IS_FALSE) {
-                    zend_throw_exception_ex(ce_StrictException, _IS_BOOL TSRMLS_CC,
-                        "illegal implicit cast from %s to boolean at argument %d", 
-                        zend_get_type_by_const(Z_TYPE_P(param)),
-                        arg - 1);
+                    zend_error(E_RECOVERABLE_ERROR, 
+                        "Argument %d passed to %s%s%s must be boolean, %s given",
+                        arg, 
+                        function->common.scope ? function->common.scope->name->val : "",
+                        function->common.scope ? "::" : "",
+                        function->common.function_name->val,
+                        zend_get_type_by_const(Z_TYPE_P(param)));
                 } else EX(opline)++;
                 return ZEND_USER_OPCODE_CONTINUE;
             } break;
@@ -56,11 +56,14 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
             case IS_DOUBLE:
             case IS_LONG: {
                 if (info->type_hint != Z_TYPE_P(param)) {
-                    zend_throw_exception_ex(ce_StrictException, info->type_hint TSRMLS_CC,
-                        "illegal implicit cast from %s to %s at argument %d", 
-                        zend_get_type_by_const(Z_TYPE_P(param)),
+                    zend_error(E_RECOVERABLE_ERROR, 
+                        "Argument %d passed to %s%s%s must be %s, %s given",
+                        arg, 
+                        function->common.scope ? function->common.scope->name->val : "",
+                        function->common.scope ? "::" : "",
+                        function->common.function_name->val,
                         zend_get_type_by_const(info->type_hint),
-                        arg - 1);
+                        zend_get_type_by_const(Z_TYPE_P(param)));
                 } else EX(opline)++;
                 return ZEND_USER_OPCODE_CONTINUE;
             } break;
@@ -148,21 +151,14 @@ ZEND_EXT_API zend_extension zend_extension_entry = {
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(strict) {
-    zend_class_entry ce;    
-
     if (!zend_get_extension("strict")) {
         zend_extension_entry.startup = NULL;
         zend_register_extension(
             &zend_extension_entry, NULL TSRMLS_CC);
     }
 
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
-    ce_StrictException = zend_register_internal_class_ex(
-        &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
-
     zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
     zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
-
 	return SUCCESS;
 } /* }}} */
 

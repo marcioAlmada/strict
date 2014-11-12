@@ -11,6 +11,6 @@ Support for the following hints is introduced:
   * boolean
   * resource
 
-Passing the wrong type parameter will result in `strict\Exception` being thrown.
+Passing the wrong type parameter will result in a recoverable error being emitted.
 
 *This extension requires PHP7*
