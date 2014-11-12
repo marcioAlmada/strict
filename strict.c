@@ -166,7 +166,6 @@ PHP_MINIT_FUNCTION(strict) {
 	return SUCCESS;
 } /* }}} */
 
-
 /* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(strict) {
 	php_info_print_table_start();

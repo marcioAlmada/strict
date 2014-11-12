@@ -12,3 +12,5 @@ Support for the following hints is introduced:
   * resource
 
 Passing the wrong type parameter will result in `strict\Exception` being thrown.
+
+*This extension requires PHP7*
