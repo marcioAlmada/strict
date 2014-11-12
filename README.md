@@ -7,4 +7,4 @@ See tests for details ... because lazy ...
 
 This extension requires PHP7.
 
-*This branch does not use autoboxing, and must be loaded as zend_extension*
+*This branch does not use autoboxing, and is rather fast ...*
