@@ -33,7 +33,7 @@ zend_class_entry *ce_StrictException;
 
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
-    
+
     if (function->common.fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
         const zend_op       *opline   = EX(opline);
         uint32_t             arg      = opline->op1.num;
@@ -41,19 +41,19 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         zend_arg_info       *info     = &function->common.arg_info[arg-1];
 
         switch (info->type_hint) {
-            case _IS_BOOL:
+            case _IS_BOOL: {
                 if (Z_TYPE_P(param) != IS_TRUE && Z_TYPE_P(param) != IS_FALSE) {
                     zend_throw_exception_ex(ce_StrictException, _IS_BOOL TSRMLS_CC,
                         "illegal implicit cast from %s to boolean at argument %d", 
                         zend_get_type_by_const(Z_TYPE_P(param)),
                         arg - 1);
                 } else EX(opline)++;
-                
                 return ZEND_USER_OPCODE_CONTINUE;
-            
+            } break;
+
             case IS_STRING:
             case IS_DOUBLE:
-            case IS_LONG:
+            case IS_LONG: {
                 if (info->type_hint != Z_TYPE_P(param)) {
                     zend_throw_exception_ex(ce_StrictException, info->type_hint TSRMLS_CC,
                         "illegal implicit cast from %s to %s at argument %d", 
@@ -61,11 +61,11 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
                         zend_get_type_by_const(info->type_hint),
                         arg - 1);
                 } else EX(opline)++;
-                
                 return ZEND_USER_OPCODE_CONTINUE;
+            } break;
         }
     }
-    
+
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
