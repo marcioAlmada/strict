@@ -47,11 +47,9 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
                         "illegal implicit cast from %s to boolean at argument %d", 
                         zend_get_type_by_const(Z_TYPE_P(param)),
                         arg - 1);
-                } else {
-                    EX(opline)++;
-                    return ZEND_USER_OPCODE_CONTINUE;
-                }
-            break;
+                } else EX(opline)++;
+                
+                return ZEND_USER_OPCODE_CONTINUE;
             
             case IS_STRING:
             case IS_DOUBLE:
@@ -62,16 +60,10 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
                         zend_get_type_by_const(Z_TYPE_P(param)),
                         zend_get_type_by_const(info->type_hint),
                         arg - 1);
-                } else {
-                    EX(opline)++;
-                    return ZEND_USER_OPCODE_CONTINUE;
-                }
-            break;
+                } else EX(opline)++;
+                
+                return ZEND_USER_OPCODE_CONTINUE;
         }
-    }
-    
-    if (EG(exception)) {
-        return ZEND_USER_OPCODE_CONTINUE;
     }
     
     return ZEND_USER_OPCODE_DISPATCH;
@@ -153,12 +145,10 @@ ZEND_EXT_API zend_extension zend_extension_entry = {
 PHP_MINIT_FUNCTION(strict) {
     zend_class_entry ce;    
 
-    /* make sure we have zend parts loaded */
     if (!zend_get_extension("strict")) {
-        zend_error(
-            E_ERROR, 
-            "strict must be loaded as a zend_extension");
-        return FAILURE;
+        zend_extension_entry.startup = NULL;
+        zend_register_extension(
+            &zend_extension_entry, NULL TSRMLS_CC);
     }
 
     INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
