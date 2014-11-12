@@ -77,21 +77,6 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-/* {{{ PHP_MINIT_FUNCTION
- */
-PHP_MINIT_FUNCTION(strict) {
-    zend_class_entry ce;    
-
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
-    ce_StrictException = zend_register_internal_class_ex(
-        &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
-
-    zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
-    zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
-
-	return SUCCESS;
-} /* }}} */
-
 static inline int zend_strict_startup(zend_extension *extension) {
     TSRMLS_FETCH();
     zend_startup_module(&strict_module_entry TSRMLS_CC);
@@ -162,6 +147,30 @@ ZEND_EXT_API zend_extension zend_extension_entry = {
     NULL, /* op_array_dtor_func_t */
     STANDARD_ZEND_EXTENSION_PROPERTIES
 };
+
+/* {{{ PHP_MINIT_FUNCTION
+ */
+PHP_MINIT_FUNCTION(strict) {
+    zend_class_entry ce;    
+
+    /* make sure we have zend parts loaded */
+    if (!zend_get_extension("strict")) {
+        zend_error(
+            E_ERROR, 
+            "strict must be loaded as a zend_extension");
+        return FAILURE;
+    }
+
+    INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
+    ce_StrictException = zend_register_internal_class_ex(
+        &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
+
+    zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
+    zend_set_user_opcode_handler(ZEND_RECV_INIT,      php_strict_handler_recv);
+
+	return SUCCESS;
+} /* }}} */
+
 
 /* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(strict) {
