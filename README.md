@@ -1,10 +1,14 @@
 strict
 ======
 
-The strict extension introduces strict type hints for scalars into PHP without changing the engine.
+The strict extension introduces support for strict scalar parameter type hints without changing Zend.
 
-See tests for details ... because lazy ...
+Support for the following hints is introduced:
 
-This extension requires PHP7.
+  * string
+  * int, integer
+  * float, double
+  * boolean
+  * resource
 
-*This branch does not use autoboxing, and is rather fast ...*
+Passing the wrong type parameter will result in `strict\Exception` being thrown.
