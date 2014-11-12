@@ -51,6 +51,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
                 return ZEND_USER_OPCODE_CONTINUE;
             } break;
 
+            case IS_RESOURCE:
             case IS_STRING:
             case IS_DOUBLE:
             case IS_LONG: {
@@ -104,6 +105,10 @@ static inline void zend_strict_compile(zend_op_array *ops) {
             
             if (IS_TYPE("boolean") || IS_TYPE("bool")) {
                 SET_TYPE(_IS_BOOL);
+            }
+            
+            if (IS_TYPE("resource")) {
+                SET_TYPE(IS_RESOURCE);
             }
             
             hint++;
