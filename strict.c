@@ -140,6 +140,21 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #else
+static zend_never_inline zval **zend_lookup_cv(zval ***ptr, zend_uint var TSRMLS_DC)
+{
+    zend_compiled_variable *cv = &EG(active_op_array)->vars[var];
+
+    if (!EG(active_symbol_table)) {
+        Z_ADDREF(EG(uninitialized_zval));
+        *ptr = (zval**)EX_CV_NUM(EG(current_execute_data), EG(active_op_array)->last_var + var);
+        **ptr = &EG(uninitialized_zval);
+    } else if (zend_hash_quick_find(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, (void **)ptr)==FAILURE) {
+        Z_ADDREF(EG(uninitialized_zval));
+        zend_hash_quick_update(EG(active_symbol_table), cv->name, cv->name_len+1, cv->hash_value, &EG(uninitialized_zval_ptr), sizeof(zval *), (void **)ptr);
+    }
+    return *ptr;
+}
+
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 #undef EX
 #define EX(e) execute_data->e
@@ -150,14 +165,30 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 
     if (param != NULL && 
         function->common.arg_info && 
-        arg < function->common.num_args) {
-        zval      **var;
-        zend_arg_info *info = &function->arg_info[arg-1];        
+        arg <= function->common.num_args) {
+        zend_arg_info *info = &function->common.arg_info[arg-1];        
+        zval **var, ***ptr;
         
         if (info->type_hint != Z_TYPE_PP(param)) {
-            php_printf("failed");
-            
+            zend_error(E_RECOVERABLE_ERROR, 
+                "Argument %d passed to %s%s%s must be %s, %s given",
+                arg,
+                function->common.scope ? function->common.scope->name : "",
+                function->common.scope ? "::" : "",
+                function->common.function_name,
+                zend_get_type_by_const(info->type_hint),
+                zend_get_type_by_const(Z_TYPE_PP(param)));
         }
+        
+        ptr = EX_CV_NUM(execute_data, opline->result.var);
+        if (*ptr == NULL) {
+            var = zend_lookup_cv
+                (ptr, opline->result.var TSRMLS_CC);
+        } else var = *ptr;
+        
+        Z_DELREF_PP(var);
+        *var = *param;
+        Z_ADDREF_PP(var);
         
         EX(opline)++;
         return ZEND_USER_OPCODE_CONTINUE;
@@ -170,21 +201,74 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
 static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
 #undef EX
 #define EX(e) execute_data->e
-
+    const zend_function *function = EX(function_state).function;
+    const zend_op    *opline = EX(opline);
+    zend_uint         arg    = opline->op1.num;
+    zend_uint         args   = zend_vm_stack_get_args_count(TSRMLS_C);
+    zval             ***ptr,
+                      **var, 
+                      *params;
+    zend_arg_info     *info  = NULL;
+    
+    ptr = EX_CV_NUM(execute_data, opline->result.var);
+    if (*ptr == NULL) {
+        var = zend_lookup_cv
+            (ptr, opline->result.var TSRMLS_CC);
+    } else var = *ptr;
+    
+    Z_DELREF_PP(var);
+    MAKE_STD_ZVAL(params);
+    *var = params;
+    
+    if (arg <= args) {
+        array_init_size(params, args - arg + 1);
+    } else array_init(params);
+    
+    if (function->common.arg_info) {
+        info = &function->common.arg_info[arg-1];
+    }
+    
+    for (; arg <= args; ++arg) {
+        zval **param = zend_vm_stack_get_arg(arg TSRMLS_CC);
+        
+        if (info && Z_TYPE_PP(param) != info->type_hint) {
+             zend_error(E_RECOVERABLE_ERROR, 
+                "Argument %d passed to %s%s%s must be %s, %s given",
+                arg, 
+                function->common.scope ? function->common.scope->name : "",
+                function->common.scope ? "::" : "",
+                function->common.function_name,
+                zend_get_type_by_const(info->type_hint),
+                zend_get_type_by_const(Z_TYPE_PP(param)));
+        }
+        
+        zend_hash_next_index_insert(Z_ARRVAL_P(params), param, sizeof(zval*), NULL);
+        Z_ADDREF_PP(param);
+    }
+    
+    EX(opline)++;
 #undef EX
-    return ZEND_USER_OPCODE_DISPATCH;
+    return ZEND_USER_OPCODE_CONTINUE;
 }
 #endif
 
 static inline int zend_strict_startup(zend_extension *extension) {
     TSRMLS_FETCH();
+#if PHP_VERSION_ID >= 70000
     zend_startup_module(&strict_module_entry TSRMLS_CC);
+#else
+    zend_startup_module(&strict_module_entry);
+#endif
 }
 
 static inline void zend_strict_compile(zend_op_array *ops) {
     TSRMLS_FETCH();
     
+#if PHP_VERSION_ID >= 70000
     if (ops->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
+#else
+    if (ops->arg_info) {
+#endif
         zend_arg_info *hint = ops->arg_info,
                       *end  = &ops->arg_info[ops->num_args];
 
@@ -210,7 +294,11 @@ static inline void zend_strict_compile(zend_op_array *ops) {
             }
             
             if (IS_TYPE("boolean") || IS_TYPE("bool")) {
+#if PHP_VERSION_ID >= 70000
                 SET_TYPE(_IS_BOOL);
+#else
+                SET_TYPE(IS_BOOL);
+#endif
             }
             
             if (IS_TYPE("resource")) {
@@ -220,7 +308,6 @@ static inline void zend_strict_compile(zend_op_array *ops) {
             hint++;
         } while (hint < end);
     }
-
 #undef IS_TYPE
 #undef SET_TYPE
 }
@@ -256,8 +343,13 @@ ZEND_EXT_API zend_extension zend_extension_entry = {
 PHP_MINIT_FUNCTION(strict) {
     if (!zend_get_extension("strict")) {
         zend_extension_entry.startup = NULL;
+#if PHP_VERSION_ID >= 70000
         zend_register_extension(
             &zend_extension_entry, NULL TSRMLS_CC);
+#else
+        zend_register_extension(
+            &zend_extension_entry, NULL);
+#endif
     }
 
     zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
