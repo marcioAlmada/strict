@@ -28,6 +28,7 @@
 #include "Zend/zend_extensions.h"
 #include "php_strict.h"
 
+#if PHP_VERSION_ID >= 70000
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
 
@@ -138,6 +139,42 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     
     return ZEND_USER_OPCODE_DISPATCH;
 }
+#else
+static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
+#undef EX
+#define EX(e) execute_data->e
+    const zend_function *function = EX(function_state).function;
+    const zend_op *opline = EX(opline);
+    zend_uint      arg = opline->op1.num;
+    zval          **param = zend_vm_stack_get_arg(arg TSRMLS_CC);
+
+    if (param != NULL && 
+        function->common.arg_info && 
+        arg < function->common.num_args) {
+        zval      **var;
+        zend_arg_info *info = &function->arg_info[arg-1];        
+        
+        if (info->type_hint != Z_TYPE_PP(param)) {
+            php_printf("failed");
+            
+        }
+        
+        EX(opline)++;
+        return ZEND_USER_OPCODE_CONTINUE;
+    }
+
+#undef EX
+    return ZEND_USER_OPCODE_DISPATCH;
+
+}
+static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
+#undef EX
+#define EX(e) execute_data->e
+
+#undef EX
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+#endif
 
 static inline int zend_strict_startup(zend_extension *extension) {
     TSRMLS_FETCH();
