@@ -13,4 +13,4 @@ Support for the following hints is introduced:
 
 Passing the wrong type parameter will result in a recoverable error being emitted.
 
-*This extension requires PHP7*
+*This extension supports PHP5 and PHP7*
