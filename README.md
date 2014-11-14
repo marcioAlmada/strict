@@ -3,7 +3,7 @@ strict
 
 The strict extension introduces support for strict scalar parameter type hints without changing Zend.
 
-Support for the following hints is introduced:
+Support for the following types is introduced:
 
   * string
   * int, integer
@@ -11,10 +11,10 @@ Support for the following hints is introduced:
   * boolean
   * resource
 
-Variadic support for all of the above is also included.
+Variadic support for all of the above types is also included.
 
 Passing the wrong type parameter will result in a recoverable error being emitted, 
-    which is consistent with the way Zend currently deals with type mismatch.
+    which is consistent with the way Zend currently deals with type mismatches.
 
 Limitations
 ===========
