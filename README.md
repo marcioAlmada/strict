@@ -13,4 +13,10 @@ Support for the following hints is introduced:
 
 Passing the wrong type parameter will result in a recoverable error being emitted.
 
+Limitations
+===========
+
+  * This extension only provides support for userland code, internal functions cannot use strict hints.
+  * Because the parser detects scalar hints as classes, they cannot have default values.
+
 *This extension supports PHP5 and PHP7*
