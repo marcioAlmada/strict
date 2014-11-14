@@ -19,4 +19,7 @@ Limitations
   * This extension only provides support for userland code, internal functions cannot use strict hints.
   * Because the parser detects scalar hints as classes, they cannot have default values.
 
-*This extension supports PHP5 and PHP7*
+*The parser would allow a default value of null, 
+    but it would be logically inconsistent to support `null` (you cannot hint for `null`).*
+
+**This extension supports PHP5 and PHP7**
