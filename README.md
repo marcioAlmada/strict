@@ -11,7 +11,7 @@ Support for the following hints is introduced:
   * boolean
   * resource
 
-Variadic support for any of the above types is also included.
+Variadic support for all of the above is also included.
 
 Passing the wrong type parameter will result in a recoverable error being emitted, 
     which is consistent with the way Zend currently deals with type mismatch.
