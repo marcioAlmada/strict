@@ -11,12 +11,15 @@ Support for the following hints is introduced:
   * boolean
   * resource
 
-Passing the wrong type parameter will result in a recoverable error being emitted.
+Variadic support for any of the above types is also included.
+
+Passing the wrong type parameter will result in a recoverable error being emitted, 
+    which is consistent with the way Zend currently deals with type mismatch.
 
 Limitations
 ===========
 
-  * This extension only provides support for userland code, internal functions cannot use strict hints.
+  * Internal functions cannot use strict hints, only user code is supported.
   * Because the parser detects scalar hints as classes, they cannot have default values.
 
 *The parser would allow a default value of null, 
