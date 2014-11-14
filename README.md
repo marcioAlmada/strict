@@ -6,9 +6,9 @@ The strict extension introduces support for strict scalar parameter type hints w
 Support for the following types is introduced:
 
   * string
-  * int, integer
+  * integer, int
   * float, double
-  * boolean
+  * boolean, bool
   * resource
 
 Variadic support for all of the above types is also included.
