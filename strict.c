@@ -179,7 +179,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         zend_arg_info *info = &function->common.arg_info[arg-1];        
         zval **var, ***ptr;
         
-        if (info->type_hint != IS_NULL && info->type_hint != Z_TYPE_PP(param)) {
+        if (info && info->type_hint != IS_NULL && info->type_hint != Z_TYPE_PP(param)) {
             zend_error(E_RECOVERABLE_ERROR, 
                 "Argument %d passed to %s%s%s must be %s, %s given",
                 arg,
@@ -241,8 +241,8 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     for (; arg <= args; ++arg) {
         zval **param = zend_vm_stack_get_arg(arg TSRMLS_CC);
         
-        if (info && Z_TYPE_PP(param) != info->type_hint) {
-             zend_error(E_RECOVERABLE_ERROR, 
+        if (info && info->type_hint != IS_NULL && Z_TYPE_PP(param) != info->type_hint) {
+             zend_error(E_RECOVERABLE_ERROR,
                 "Argument %d passed to %s%s%s must be %s, %s given",
                 arg, 
                 function->common.scope ? function->common.scope->name : "",
