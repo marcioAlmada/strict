@@ -84,7 +84,7 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     
     if (arg <= args) {
         zval *param = 
-            EX_VAR_NUM(EX(func)->op_array.last_var + EX(func)->op_array.T);;
+            EX_VAR_NUM(EX(func)->op_array.last_var + EX(func)->op_array.T);
         
         if (function->common.fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
             switch (info->type_hint) {
@@ -140,6 +140,16 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #else
+#ifndef EX_CV_NUM
+#define EX_CV_NUM(execute_data, offset) (execute_data->CVs + offset)
+static inline zend_uint zend_vm_stack_get_args_count(TSRMLS_D) {
+    if (EG(current_execute_data)) {
+        void **p = EG(current_execute_data)->function_state.arguments;
+        return (int) (zend_uintptr_t) *p;
+    } else return 0;
+}
+#endif
+
 static zend_never_inline zval **zend_lookup_cv(zval ***ptr, zend_uint var TSRMLS_DC)
 {
     zend_compiled_variable *cv = &EG(active_op_array)->vars[var];
@@ -169,7 +179,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         zend_arg_info *info = &function->common.arg_info[arg-1];        
         zval **var, ***ptr;
         
-        if (info->type_hint != Z_TYPE_PP(param)) {
+        if (info->type_hint != IS_NULL && info->type_hint != Z_TYPE_PP(param)) {
             zend_error(E_RECOVERABLE_ERROR, 
                 "Argument %d passed to %s%s%s must be %s, %s given",
                 arg,
@@ -259,6 +269,7 @@ static inline int zend_strict_startup(zend_extension *extension) {
 #else
     zend_startup_module(&strict_module_entry);
 #endif
+    return SUCCESS;
 }
 
 static inline void zend_strict_compile(zend_op_array *ops) {
@@ -353,7 +364,9 @@ PHP_MINIT_FUNCTION(strict) {
     }
 
     zend_set_user_opcode_handler(ZEND_RECV,           php_strict_handler_recv);
+#ifdef ZEND_RECV_VARIADIC
     zend_set_user_opcode_handler(ZEND_RECV_VARIADIC,  php_strict_handler_variadic);
+#endif
 
 	return SUCCESS;
 } /* }}} */
