@@ -1,6 +1,10 @@
 strict
 ======
 
+[![Build Status](https://travis-ci.org/krakjoe/strict.svg?branch=master)](https://travis-ci.org/krakjoe/strict)
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/krakjoe/strict.svg)](http://isitmaintained.com/project/krakjoe/strict "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/krakjoe/strict.svg)](http://isitmaintained.com/project/krakjoe/strict "Percentage of issues still open")
+
 The strict extension introduces support for strict scalar parameter type hints without changing Zend.
 
 Support for the following types is introduced:
