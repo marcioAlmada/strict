@@ -10,10 +10,10 @@
   <email>pthreads@pthreads.org</email>
   <active>yes</active>
  </lead>
- <date>2014-11-18</date>
- <time>06:00:00</time>
+ <date>2014-11-19</date>
+ <time>08:00:00</time>
  <version>
-  <release>0.2.0</release>
+  <release>0.3.0</release>
   <api>0.3.0</api>
  </version>
  <stability>
