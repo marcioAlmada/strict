@@ -172,36 +172,45 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_op *opline = EX(opline);
     zend_uint      arg = opline->op1.num;
     zval          **param = zend_vm_stack_get_arg(arg TSRMLS_CC);
-
+    zend_arg_info *info;
+    
     if (param != NULL && 
         function->common.arg_info && 
-        arg <= function->common.num_args) {
-        zend_arg_info *info = &function->common.arg_info[arg-1];        
+        (arg <= function->common.num_args) &&
+        (info = &function->common.arg_info[arg-1])) {
         zval **var, ***ptr;
         
-        if (info && info->type_hint != IS_NULL && info->type_hint != Z_TYPE_PP(param)) {
-            zend_error(E_RECOVERABLE_ERROR, 
-                "Argument %d passed to %s%s%s must be %s, %s given",
-                arg,
-                function->common.scope ? function->common.scope->name : "",
-                function->common.scope ? "::" : "",
-                function->common.function_name,
-                zend_get_type_by_const(info->type_hint),
-                zend_get_type_by_const(Z_TYPE_PP(param)));
+        switch (info->type_hint) {
+            case IS_STRING:
+            case IS_LONG:
+            case IS_DOUBLE:
+            case IS_BOOL:
+            case IS_RESOURCE:
+                if (info->type_hint != Z_TYPE_PP(param)) {
+                    zend_error(E_RECOVERABLE_ERROR, 
+                        "Argument %d passed to %s%s%s must be %s, %s given",
+                        arg,
+                        function->common.scope ? function->common.scope->name : "",
+                        function->common.scope ? "::" : "",
+                        function->common.function_name,
+                        zend_get_type_by_const(info->type_hint),
+                        zend_get_type_by_const(Z_TYPE_PP(param)));
+                }
+                
+                ptr = EX_CV_NUM(execute_data, opline->result.var);
+                if (*ptr == NULL) {
+                    var = zend_lookup_cv
+                        (ptr, opline->result.var TSRMLS_CC);
+                } else var = *ptr;
+                
+                Z_DELREF_PP(var);
+                *var = *param;
+                Z_ADDREF_PP(var);
+                
+                EX(opline)++;
+                return ZEND_USER_OPCODE_CONTINUE;
+            break;
         }
-        
-        ptr = EX_CV_NUM(execute_data, opline->result.var);
-        if (*ptr == NULL) {
-            var = zend_lookup_cv
-                (ptr, opline->result.var TSRMLS_CC);
-        } else var = *ptr;
-        
-        Z_DELREF_PP(var);
-        *var = *param;
-        Z_ADDREF_PP(var);
-        
-        EX(opline)++;
-        return ZEND_USER_OPCODE_CONTINUE;
     }
 
 #undef EX
@@ -220,45 +229,58 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
                       *params;
     zend_arg_info     *info  = NULL;
     
-    ptr = EX_CV_NUM(execute_data, opline->result.var);
-    if (*ptr == NULL) {
-        var = zend_lookup_cv
-            (ptr, opline->result.var TSRMLS_CC);
-    } else var = *ptr;
-    
-    Z_DELREF_PP(var);
-    MAKE_STD_ZVAL(params);
-    *var = params;
-    
-    if (arg <= args) {
-        array_init_size(params, args - arg + 1);
-    } else array_init(params);
-    
     if (function->common.arg_info) {
         info = &function->common.arg_info[arg-1];
-    }
-    
-    for (; arg <= args; ++arg) {
-        zval **param = zend_vm_stack_get_arg(arg TSRMLS_CC);
         
-        if (info && info->type_hint != IS_NULL && Z_TYPE_PP(param) != info->type_hint) {
-             zend_error(E_RECOVERABLE_ERROR,
-                "Argument %d passed to %s%s%s must be %s, %s given",
-                arg, 
-                function->common.scope ? function->common.scope->name : "",
-                function->common.scope ? "::" : "",
-                function->common.function_name,
-                zend_get_type_by_const(info->type_hint),
-                zend_get_type_by_const(Z_TYPE_PP(param)));
+        if (!info) {
+            return ZEND_USER_OPCODE_DISPATCH;
         }
-        
-        zend_hash_next_index_insert(Z_ARRVAL_P(params), param, sizeof(zval*), NULL);
-        Z_ADDREF_PP(param);
     }
     
-    EX(opline)++;
+    switch (info->type_hint) {
+        case IS_LONG:
+        case IS_DOUBLE:
+        case IS_RESOURCE:
+        case IS_STRING:
+        case IS_BOOL:
+            ptr = EX_CV_NUM(execute_data, opline->result.var);
+            if (*ptr == NULL) {
+                var = zend_lookup_cv
+                    (ptr, opline->result.var TSRMLS_CC);
+            } else var = *ptr;
+            
+            Z_DELREF_PP(var);
+            MAKE_STD_ZVAL(params);
+            *var = params;
+            
+            if (arg <= args) {
+                array_init_size(params, args - arg + 1);
+            } else array_init(params);
+            
+            for (; arg <= args; ++arg) {
+                zval **param = zend_vm_stack_get_arg(arg TSRMLS_CC);
+                
+                if (Z_TYPE_PP(param) != info->type_hint) {
+                     zend_error(E_RECOVERABLE_ERROR,
+                        "Argument %d passed to %s%s%s must be %s, %s given",
+                        arg, 
+                        function->common.scope ? function->common.scope->name : "",
+                        function->common.scope ? "::" : "",
+                        function->common.function_name,
+                        zend_get_type_by_const(info->type_hint),
+                        zend_get_type_by_const(Z_TYPE_PP(param)));
+                }
+                
+                zend_hash_next_index_insert(Z_ARRVAL_P(params), param, sizeof(zval*), NULL);
+                Z_ADDREF_PP(param);
+            }
+            
+            EX(opline)++;
+            return ZEND_USER_OPCODE_CONTINUE;
+        break;
+    }
 #undef EX
-    return ZEND_USER_OPCODE_CONTINUE;
+    return ZEND_USER_OPCODE_DISPATCH;
 }
 #endif
 
