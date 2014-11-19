@@ -229,12 +229,9 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
                       *params;
     zend_arg_info     *info  = NULL;
     
-    if (function->common.arg_info) {
-        info = &function->common.arg_info[arg-1];
-        
-        if (!info) {
-            return ZEND_USER_OPCODE_DISPATCH;
-        }
+    if (!function->common.arg_info || 
+        !(info = &function->common.arg_info[arg-1])) {
+        return ZEND_USER_OPCODE_DISPATCH;
     }
     
     switch (info->type_hint) {
