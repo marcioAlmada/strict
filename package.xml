@@ -14,7 +14,7 @@
  <time>06:00:00</time>
  <version>
   <release>0.2.0</release>
-  <api>0.2.0</api>
+  <api>0.3.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -22,7 +22,7 @@
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
-  initial release
+  fix issue in 5 series
  </notes>
  <contents>
   <dir name="/">
