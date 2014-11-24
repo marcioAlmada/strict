@@ -26,7 +26,10 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "Zend/zend_extensions.h"
+#include "Zend/zend_exceptions.h"
 #include "php_strict.h"
+
+zend_class_entry *ce_StrictException;
 
 #if PHP_VERSION_ID >= 70000
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
@@ -140,6 +143,8 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #else
+#define zend_long long
+#define ZEND_STRTOL strtol
 #ifndef EX_CV_NUM
 #define EX_CV_NUM(execute_data, offset) (execute_data->CVs + offset)
 static inline zend_uint zend_vm_stack_get_args_count(TSRMLS_D) {
@@ -368,9 +373,277 @@ ZEND_EXT_API zend_extension zend_extension_entry = {
     STANDARD_ZEND_EXTENSION_PROPERTIES
 };
 
+static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC) {
+    switch (Z_TYPE_P(value)) {
+        case IS_LONG:     ZVAL_ZVAL(return_value, value, 1, 0); break;
+#if PHP_VERSION_ID >= 70000
+        case _IS_BOOL:     
+#else
+        case IS_BOOL:     
+#endif
+            ZVAL_LONG(return_value, (zend_long) Z_BVAL_P(value)); 
+        break;
+        
+        case IS_DOUBLE: {
+            double dval = 
+                (double)(zend_long) Z_DVAL_P(value);
+            
+            if (dval != Z_DVAL_P(value)) {
+                return FAILURE;
+            }
+            
+            ZVAL_LONG(return_value, (zend_long) dval); 
+        } break;
+        
+        case IS_STRING: {
+            zend_long lval;
+            char      *start = &Z_STRVAL_P(value)[0], 
+                      *end   = NULL;
+            
+            switch (*start) {
+                case '-':
+                case '+':
+                case '.':
+                    if (Z_STRLEN_P(value) == 1) {
+                        return FAILURE;
+                    }
+                    /* intentionally fall through */
+                    
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    errno = 0;
+                    lval  = ZEND_STRTOL(start, &end, 10);
+                    
+                    if (errno || end - Z_STRVAL_P(value) != Z_STRLEN_P(value)) {
+                        return FAILURE;
+                    }
+                    
+                    ZVAL_LONG(return_value, lval);
+                break;
+                
+                default:
+                    return FAILURE;
+            }
+        } break;
+    }
+    
+    return SUCCESS;
+}
+
+/* {{{ proto integer strict_integer(mixed value) */
+PHP_FUNCTION(strict_integer) {
+    zval *value = NULL;
+    
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
+        return;
+    }
+    
+    if (php_strict_cast_long(value, return_value TSRMLS_CC) != SUCCESS) {
+        zend_throw_exception_ex(ce_StrictException, IS_LONG TSRMLS_CC,
+            "failed to cast %s to integer",
+            zend_get_type_by_const(Z_TYPE_P(value)));
+    }
+} /* }}} */
+
+static inline int php_strict_cast_double(zval *value, zval *return_value TSRMLS_DC) {
+    switch (Z_TYPE_P(value)) {
+        case IS_DOUBLE: ZVAL_ZVAL(return_value, value, 1, 0); break;
+        case IS_LONG: ZVAL_DOUBLE(return_value, (double) Z_LVAL_P(value)); break;
+#if PHP_VERSION_ID >= 70000
+        case _IS_BOOL: 
+#else
+        case IS_BOOL: 
+#endif
+            ZVAL_DOUBLE(return_value, (double) Z_BVAL_P(value)); 
+        break;
+       
+        case IS_STRING: {
+            double dval;
+            const char   *start = &Z_STRVAL_P(value)[0], 
+                         *end = NULL;
+                   
+            switch (*start) {
+                case '+':
+                case '-':
+                case '.':
+                    if (Z_STRLEN_P(value) == 1) {
+                        return FAILURE;
+                    }
+                    
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    errno = 0;
+                    dval  = zend_strtod(start, &end);
+                    
+                    if (errno || end - Z_STRVAL_P(value) != Z_STRLEN_P(value)) {
+                        return FAILURE;
+                    }
+                    
+                    ZVAL_DOUBLE(return_value, dval);
+                break;
+            }
+        } break;
+        
+        default:
+            return FAILURE;
+    }
+    
+    return SUCCESS;
+}
+
+/* {{{ proto double strict_double(mixed value) */
+PHP_FUNCTION(strict_double) {
+    zval *value = NULL;
+    
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
+        return;
+    }
+    
+    if (php_strict_cast_double(value, return_value TSRMLS_CC) != SUCCESS) {
+        zend_throw_exception_ex(ce_StrictException, IS_DOUBLE TSRMLS_CC,
+            "failed to cast %s to double",
+            zend_get_type_by_const(Z_TYPE_P(value)));
+    }
+} /* }}} */
+
+static inline int php_strict_cast_boolean(zval *value, zval *return_value TSRMLS_DC) {
+    switch (Z_TYPE_P(value)) {
+#if PHP_VERSION_ID >= 70000
+        case _IS_BOOL:
+#else
+        case IS_BOOL:
+#endif
+            ZVAL_ZVAL(return_value, value, 1, 0);
+        break;
+        
+        case IS_LONG: switch (Z_LVAL_P(value)) {
+            case 0:
+                RETVAL_BOOL(0);
+            break;
+            
+            case 1:
+                RETVAL_BOOL(1);
+            break;
+            
+            default:
+                return FAILURE;
+        } break;
+        
+        case IS_DOUBLE: {
+            if (Z_DVAL_P(value) == 1.0) {
+                RETVAL_BOOL(1);
+            } else if (Z_DVAL_P(value) == 0.0) {
+                RETVAL_BOOL(0);
+            } else return FAILURE;
+        } break;
+        
+        default:
+            return FAILURE;
+    }
+    
+    return SUCCESS;
+}
+
+/* {{{ proto boolean strict_boolean(mixed value) */
+PHP_FUNCTION(strict_boolean) {
+    zval *value = NULL;
+    
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
+        return;
+    }
+    
+    if (php_strict_cast_boolean(value, return_value TSRMLS_CC) != SUCCESS) {
+#if PHP_VERSION_ID >= 70000
+        zend_throw_exception_ex(ce_StrictException, _IS_BOOL TSRMLS_CC,
+#else
+        zend_throw_exception_ex(ce_StrictException, IS_BOOL TSRMLS_CC,
+#endif
+            "failed to cast %s to boolean",
+            zend_get_type_by_const(Z_TYPE_P(value)));
+    }
+} /* }}} */
+
+static inline int php_strict_cast_string(zval *value, zval *return_value TSRMLS_DC) {
+    switch (Z_TYPE_P(value)) {
+        case IS_STRING: ZVAL_ZVAL(return_value, value, 1, 0); break;
+        
+        case IS_LONG: {
+            ZVAL_ZVAL(
+                return_value, value, 1, 0);
+            convert_to_string(return_value);
+        } break;
+        
+        case IS_DOUBLE: {
+            ZVAL_ZVAL(
+                return_value, value, 1, 0);
+            convert_to_string(return_value);
+        } break;
+        
+        case IS_OBJECT: {
+            if (Z_OBJ_HT_P(value)->cast_object) {
+                return Z_OBJ_HT_P(value)->
+                    cast_object(value, return_value, IS_STRING TSRMLS_CC);
+            } else if (Z_OBJ_HT_P(value)->get) {
+#if PHP_VERSION_ID >= 70000
+                zval *get = Z_OBJ_HT_P(value)->get(value, return_value TSRMLS_CC);
+#else
+                zval *get = Z_OBJ_HT_P(value)->get(value TSRMLS_CC);
+#endif
+                if (Z_TYPE_P(get) != IS_OBJECT) {
+                    ZVAL_ZVAL(
+                        return_value, get, 1, 0);
+                    convert_to_string(return_value);
+                    break;
+                }
+            }
+        }
+        
+        /* intentionally fall through */
+        
+        default:
+            return FAILURE;
+    }
+    
+    return SUCCESS;
+}
+
+/* {{{ proto string strict_string(mixed value) */
+PHP_FUNCTION(strict_string) {
+    zval *value = NULL;
+    
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
+        return;
+    }
+    
+    if (php_strict_cast_string(value, return_value TSRMLS_CC) != SUCCESS) {
+        zend_throw_exception_ex(ce_StrictException, IS_STRING TSRMLS_CC,
+            "failed to cast %s to string",
+            zend_get_type_by_const(Z_TYPE_P(value)));
+    }
+} /* }}} */
+
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(strict) {
+    zend_class_entry ce;
+    
     if (!zend_get_extension("strict")) {
         zend_extension_entry.startup = NULL;
 #if PHP_VERSION_ID >= 70000
@@ -387,6 +660,15 @@ PHP_MINIT_FUNCTION(strict) {
     zend_set_user_opcode_handler(ZEND_RECV_VARIADIC,  php_strict_handler_variadic);
 #endif
 
+    INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
+#if PHP_VERSION_ID >= 70000
+    ce_StrictException = zend_register_internal_class_ex(
+        &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
+#else
+    ce_StrictException = zend_register_internal_class_ex(
+        &ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+#endif
+
 	return SUCCESS;
 } /* }}} */
 
@@ -397,11 +679,23 @@ PHP_MINFO_FUNCTION(strict) {
 	php_info_print_table_end();
 } /* }}} */
 
+ZEND_BEGIN_ARG_INFO_EX(php_strict_cast_arginfo, 0, 0, 1)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+zend_function_entry php_strict_functions[] = {
+    PHP_FE(strict_integer, php_strict_cast_arginfo)
+    PHP_FE(strict_double,  php_strict_cast_arginfo)
+    PHP_FE(strict_boolean, php_strict_cast_arginfo)
+    PHP_FE(strict_string,  php_strict_cast_arginfo)
+    PHP_FE_END
+};
+
 /* {{{ strict_module_entry */
 zend_module_entry strict_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"strict",
-	NULL,
+	php_strict_functions,
 	PHP_MINIT(strict),
 	NULL,
 	NULL,

@@ -13,8 +13,8 @@
  <date>2014-11-19</date>
  <time>08:00:00</time>
  <version>
-  <release>0.3.0</release>
-  <api>0.3.0</api>
+  <release>0.4.0</release>
+  <api>0.4.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -22,7 +22,7 @@
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
-  fix issue in 5 series
+  add strict_cast function
  </notes>
  <contents>
   <dir name="/">
@@ -38,6 +38,11 @@
    <file name="tests/010.phpt" role="test" />
    <file name="tests/011.phpt" role="test" />
    <file name="tests/012.phpt" role="test" />
+   <file name="tests/013.phpt" role="test" />
+   <file name="tests/014.phpt" role="test" />
+   <file name="tests/015.phpt" role="test" />
+   <file name="tests/016.phpt" role="test" />
+   <file name="tests/017.phpt" role="test" />
    <file name="php_strict.h" role="src" />
    <file name="strict.c" role="src" />
    <file name="config.m4" role="src" />

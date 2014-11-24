@@ -20,6 +20,20 @@ Variadic support for all of the above types is also included.
 Passing the wrong type parameter will result in a recoverable error being emitted, 
     which is consistent with the way Zend currently deals with type mismatches.
 
+Casting
+=======
+
+The `strict` extension introduces a set of functions for losless-or-error casting, inspiration taken from the failed safe cast RFC.
+
+The following functions are introduced:
+
+ * strict_integer
+ * strict_double
+ * strict_string
+ * strict_boolean
+ 
+*TODO: work out a way to display casting rules coherently*
+
 Limitations
 ===========
 
