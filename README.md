@@ -30,7 +30,7 @@ The following function is introduced:
  * mixed strict_cast(integer type, mixed value)
 
 | Type      | Value                  | Result |
------------------------------------------------
+|:----------|:----------------------:|:------:|
 | integer   | `"0xFF"`               | Pass   |
 | integer   | `"0b11001"`            | Pass   |
 | integer   | `"100"`                | Pass   |
