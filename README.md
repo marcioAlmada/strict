@@ -48,6 +48,8 @@ The following function is introduced:
 
 The aim is that if the value is coherent and casting to the specified type does not cause a loss in precision, then the cast should succeed.
 
+*Type identifiers are defined as constants in the strict namespace*
+
 Limitations
 ===========
 
