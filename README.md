@@ -23,7 +23,7 @@ Passing the wrong type parameter will result in a recoverable error being emitte
 Casting
 =======
 
-The `strict` extension introduces losless-or-exception casting, inspiration taken from the failed safe cast RFC.
+The `strict` extension introduces losless-or-exception casting, inspiration taken from the safe cast RFC.
 
 The following function is introduced:
 
@@ -42,6 +42,9 @@ The following function is introduced:
 | double    | `+1.1`                 | Pass   |
 | double    | `".01"`                | Pass   |
 | double    | `"0.01 "`              | Fail   |
+| boolean   | 1                      | Pass   |
+| boolean   | 2                      | Fail   |
+| boolean   | 0                      | Pass   |
 
 The aim is that if the value is coherent and casting to the specified type does not cause a loss in precision, then the cast should succeed.
 
