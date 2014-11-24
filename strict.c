@@ -438,21 +438,6 @@ static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC
     return SUCCESS;
 }
 
-/* {{{ proto integer strict_integer(mixed value) */
-PHP_FUNCTION(strict_integer) {
-    zval *value = NULL;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-    
-    if (php_strict_cast_long(value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictCastException, IS_LONG TSRMLS_CC,
-            "failed to cast %s to integer",
-            zend_get_type_by_const(Z_TYPE_P(value)));
-    }
-} /* }}} */
-
 static inline int php_strict_cast_double(zval *value, zval *return_value TSRMLS_DC) {
     switch (Z_TYPE_P(value)) {
         case IS_DOUBLE: ZVAL_ZVAL(return_value, value, 1, 0); break;
@@ -507,78 +492,6 @@ static inline int php_strict_cast_double(zval *value, zval *return_value TSRMLS_
     return SUCCESS;
 }
 
-/* {{{ proto double strict_double(mixed value) */
-PHP_FUNCTION(strict_double) {
-    zval *value = NULL;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-    
-    if (php_strict_cast_double(value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictCastException, IS_DOUBLE TSRMLS_CC,
-            "failed to cast %s to double",
-            zend_get_type_by_const(Z_TYPE_P(value)));
-    }
-} /* }}} */
-
-static inline int php_strict_cast_boolean(zval *value, zval *return_value TSRMLS_DC) {
-    switch (Z_TYPE_P(value)) {
-#if PHP_VERSION_ID >= 70000
-        case _IS_BOOL:
-#else
-        case IS_BOOL:
-#endif
-            ZVAL_ZVAL(return_value, value, 1, 0);
-        break;
-        
-        case IS_LONG: switch (Z_LVAL_P(value)) {
-            case 0:
-                RETVAL_BOOL(0);
-            break;
-            
-            case 1:
-                RETVAL_BOOL(1);
-            break;
-            
-            default:
-                return FAILURE;
-        } break;
-        
-        case IS_DOUBLE: {
-            if (Z_DVAL_P(value) == 1.0) {
-                RETVAL_BOOL(1);
-            } else if (Z_DVAL_P(value) == 0.0) {
-                RETVAL_BOOL(0);
-            } else return FAILURE;
-        } break;
-        
-        default:
-            return FAILURE;
-    }
-    
-    return SUCCESS;
-}
-
-/* {{{ proto boolean strict_boolean(mixed value) */
-PHP_FUNCTION(strict_boolean) {
-    zval *value = NULL;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
-        return;
-    }
-    
-    if (php_strict_cast_boolean(value, return_value TSRMLS_CC) != SUCCESS) {
-#if PHP_VERSION_ID >= 70000
-        zend_throw_exception_ex(ce_StrictCastException, _IS_BOOL TSRMLS_CC,
-#else
-        zend_throw_exception_ex(ce_StrictCastException, IS_BOOL TSRMLS_CC,
-#endif
-            "failed to cast %s to boolean",
-            zend_get_type_by_const(Z_TYPE_P(value)));
-    }
-} /* }}} */
-
 static inline int php_strict_cast_string(zval *value, zval *return_value TSRMLS_DC) {
     switch (Z_TYPE_P(value)) {
         case IS_STRING: ZVAL_ZVAL(return_value, value, 1, 0); break;
@@ -623,21 +536,79 @@ static inline int php_strict_cast_string(zval *value, zval *return_value TSRMLS_
     return SUCCESS;
 }
 
-/* {{{ proto string strict_string(mixed value) */
-PHP_FUNCTION(strict_string) {
+static inline int php_strict_cast_boolean(zval *value, zval *return_value TSRMLS_DC) {
+    switch (Z_TYPE_P(value)) {
+#if PHP_VERSION_ID >= 70000
+        case _IS_BOOL:
+#else
+        case IS_BOOL:
+#endif
+            ZVAL_ZVAL(return_value, value, 1, 0);
+        break;
+        
+        case IS_LONG: switch (Z_LVAL_P(value)) {
+            case 0:
+                RETVAL_BOOL(0);
+            break;
+            
+            case 1:
+                RETVAL_BOOL(1);
+            break;
+            
+            default:
+                return FAILURE;
+        } break;
+        
+        case IS_DOUBLE: {
+            if (Z_DVAL_P(value) == 1.0) {
+                RETVAL_BOOL(1);
+            } else if (Z_DVAL_P(value) == 0.0) {
+                RETVAL_BOOL(0);
+            } else return FAILURE;
+        } break;
+        
+        default:
+            return FAILURE;
+    }
+    
+    return SUCCESS;
+}
+
+static inline int php_strict_cast(int type, zval *value, zval *return_value TSRMLS_DC) {
+    switch (type) {
+        case IS_STRING:
+            return php_strict_cast_string(value, return_value TSRMLS_CC);
+        case IS_LONG:
+            return php_strict_cast_long(value, return_value TSRMLS_CC);
+        case IS_DOUBLE:
+            return php_strict_cast_double(value, return_value TSRMLS_CC);
+#if PHP_VERSION_ID >= 70000
+        case _IS_BOOL:
+#else
+        case IS_BOOL:
+#endif
+            return php_strict_cast_boolean(value, return_value TSRMLS_CC);
+    }
+    
+    return FAILURE;
+}
+
+/* {{{ proto integer strict_cast(int type, mixed value) */
+PHP_FUNCTION(strict_cast) {
+    zend_long type;
     zval *value = NULL;
     
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lz", &type, &value) != SUCCESS) {
         return;
     }
     
-    if (php_strict_cast_string(value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictCastException, IS_STRING TSRMLS_CC,
-            "failed to cast %s to string",
-            zend_get_type_by_const(Z_TYPE_P(value)));
+    if (php_strict_cast(type, value, return_value TSRMLS_CC) != SUCCESS) {
+        zend_throw_exception_ex(ce_StrictCastException, IS_LONG TSRMLS_CC,
+            "failed to cast %s to %s",
+            zend_get_type_by_const(Z_TYPE_P(value)),
+            zend_get_type_by_const(type));
     }
 } /* }}} */
-
 
 /* {{{ PHP_MINIT_FUNCTION
  */
@@ -669,6 +640,18 @@ PHP_MINIT_FUNCTION(strict) {
         &ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 #endif
 
+    REGISTER_LONG_CONSTANT("strict\\integer",       IS_LONG,     CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("strict\\int",           IS_LONG,     CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("strict\\float",         IS_DOUBLE,   CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("strict\\double",        IS_DOUBLE,   CONST_PERSISTENT);
+#if PHP_VERSION_ID >= 60000
+    REGISTER_LONG_CONSTANT("strict\\boolean",       _IS_BOOL,    CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("strict\\bool",          _IS_BOOL,    CONST_PERSISTENT);
+#else
+    REGISTER_LONG_CONSTANT("strict\\boolean",       IS_BOOL,     CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("strict\\bool",          IS_BOOL,     CONST_PERSISTENT);
+#endif
+    REGISTER_LONG_CONSTANT("strict\\string",        IS_STRING,   CONST_PERSISTENT);
 	return SUCCESS;
 } /* }}} */
 
@@ -679,15 +662,13 @@ PHP_MINFO_FUNCTION(strict) {
 	php_info_print_table_end();
 } /* }}} */
 
-ZEND_BEGIN_ARG_INFO_EX(php_strict_cast_arginfo, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(php_strict_cast_arginfo, 0, 0, 2)
+    ZEND_ARG_INFO(0, type)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
 zend_function_entry php_strict_functions[] = {
-    PHP_FE(strict_integer, php_strict_cast_arginfo)
-    PHP_FE(strict_double,  php_strict_cast_arginfo)
-    PHP_FE(strict_boolean, php_strict_cast_arginfo)
-    PHP_FE(strict_string,  php_strict_cast_arginfo)
+    PHP_FE(strict_cast, php_strict_cast_arginfo)
     PHP_FE_END
 };
 

@@ -2,9 +2,9 @@
 testing casting (string)
 --FILE--
 <?php
-function cast_wrapper($value) {
+function cast_wrapper($type, $value) {
     try {
-        return strict_string($value);
+        return strict_cast($type, $value);
     } catch (strict\CastException $ex) { }
 }
 
@@ -26,7 +26,7 @@ $values = array(
 );
 
 foreach ($values as $value) {
-    var_dump(cast_wrapper($value));
+    var_dump(cast_wrapper(strict\string, $value));
 }
 ?>
 --EXPECT--

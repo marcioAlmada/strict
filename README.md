@@ -25,12 +25,9 @@ Casting
 
 The `strict` extension introduces a set of functions for losless-or-error casting, inspiration taken from the failed safe cast RFC.
 
-The following functions are introduced:
+The following function is introduced:
 
- * strict_integer
- * strict_double
- * strict_string
- * strict_boolean
+ * mixed strict_cast(integer type, mixed value)
  
 *TODO: work out a way to display casting rules coherently*
 
