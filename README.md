@@ -29,7 +29,6 @@ The following function is introduced:
 
  * mixed strict_cast(integer type, mixed value)
 
-----------------------------------------------
 | Type      | Value                  | Result |
 -----------------------------------------------
 | integer   | "0xFF"                 | Pass   |
