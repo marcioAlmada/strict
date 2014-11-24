@@ -5,7 +5,7 @@ testing casting (integer)
 function cast_wrapper($value) {
     try {
         return strict_integer($value);
-    } catch (strict\Exception $ex) { }
+    } catch (strict\CastException $ex) { }
 }
 
 $values = array(

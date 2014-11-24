@@ -5,7 +5,7 @@ testing casting (double)
 function cast_wrapper($value) {
     try {
         return strict_double($value);
-    } catch (strict\Exception $ex) { }
+    } catch (strict\CastException $ex) { }
 }
 
 $values = array(

@@ -5,7 +5,7 @@ testing casting (string)
 function cast_wrapper($value) {
     try {
         return strict_string($value);
-    } catch (strict\Exception $ex) { }
+    } catch (strict\CastException $ex) { }
 }
 
 class Test {

@@ -29,7 +29,7 @@
 #include "Zend/zend_exceptions.h"
 #include "php_strict.h"
 
-zend_class_entry *ce_StrictException;
+zend_class_entry *ce_StrictCastException;
 
 #if PHP_VERSION_ID >= 70000
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
@@ -447,7 +447,7 @@ PHP_FUNCTION(strict_integer) {
     }
     
     if (php_strict_cast_long(value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictException, IS_LONG TSRMLS_CC,
+        zend_throw_exception_ex(ce_StrictCastException, IS_LONG TSRMLS_CC,
             "failed to cast %s to integer",
             zend_get_type_by_const(Z_TYPE_P(value)));
     }
@@ -516,7 +516,7 @@ PHP_FUNCTION(strict_double) {
     }
     
     if (php_strict_cast_double(value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictException, IS_DOUBLE TSRMLS_CC,
+        zend_throw_exception_ex(ce_StrictCastException, IS_DOUBLE TSRMLS_CC,
             "failed to cast %s to double",
             zend_get_type_by_const(Z_TYPE_P(value)));
     }
@@ -570,9 +570,9 @@ PHP_FUNCTION(strict_boolean) {
     
     if (php_strict_cast_boolean(value, return_value TSRMLS_CC) != SUCCESS) {
 #if PHP_VERSION_ID >= 70000
-        zend_throw_exception_ex(ce_StrictException, _IS_BOOL TSRMLS_CC,
+        zend_throw_exception_ex(ce_StrictCastException, _IS_BOOL TSRMLS_CC,
 #else
-        zend_throw_exception_ex(ce_StrictException, IS_BOOL TSRMLS_CC,
+        zend_throw_exception_ex(ce_StrictCastException, IS_BOOL TSRMLS_CC,
 #endif
             "failed to cast %s to boolean",
             zend_get_type_by_const(Z_TYPE_P(value)));
@@ -632,7 +632,7 @@ PHP_FUNCTION(strict_string) {
     }
     
     if (php_strict_cast_string(value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictException, IS_STRING TSRMLS_CC,
+        zend_throw_exception_ex(ce_StrictCastException, IS_STRING TSRMLS_CC,
             "failed to cast %s to string",
             zend_get_type_by_const(Z_TYPE_P(value)));
     }
@@ -660,12 +660,12 @@ PHP_MINIT_FUNCTION(strict) {
     zend_set_user_opcode_handler(ZEND_RECV_VARIADIC,  php_strict_handler_variadic);
 #endif
 
-    INIT_NS_CLASS_ENTRY(ce, "strict", "Exception", NULL);
+    INIT_NS_CLASS_ENTRY(ce, "strict", "CastException", NULL);
 #if PHP_VERSION_ID >= 70000
-    ce_StrictException = zend_register_internal_class_ex(
+    ce_StrictCastException = zend_register_internal_class_ex(
         &ce, zend_exception_get_default(TSRMLS_C) TSRMLS_CC);
 #else
-    ce_StrictException = zend_register_internal_class_ex(
+    ce_StrictCastException = zend_register_internal_class_ex(
         &ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 #endif
 

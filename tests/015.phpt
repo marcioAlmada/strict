@@ -5,7 +5,7 @@ testing casting (boolean)
 function cast_wrapper($value) {
     try {
         return strict_boolean($value);
-    } catch (strict\Exception $ex) { }
+    } catch (strict\CastException $ex) { }
 }
 
 $values = array(
