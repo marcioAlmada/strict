@@ -399,6 +399,7 @@ static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC
             zend_long lval;
             char      *start = &Z_STRVAL_P(value)[0], 
                       *end   = NULL;
+            int        base  = 10;
             
             switch (*start) {
                 case '-':
@@ -410,6 +411,22 @@ static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC
                     /* intentionally fall through */
                     
                 case '0':
+                    if (Z_STRLEN_P(value) > 2) {
+                        switch (Z_STRVAL_P(value)[1]) {
+                            case 'x':
+                            case 'X':
+                                base = 16;
+                            break;
+                            
+                            case 'b':
+                            case 'B':
+                                base = 2;
+                                start += base;
+                            break;
+                        }
+                    }
+                    /* intentionally fall through */
+                    
                 case '1':
                 case '2':
                 case '3':
@@ -419,9 +436,9 @@ static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC
                 case '7':
                 case '8':
                 case '9':
-                    errno = 0;
-                    lval  = ZEND_STRTOL(start, &end, 10);
-                    
+                    errno = 0;                   
+                    lval  = ZEND_STRTOL(start, &end, base);
+
                     if (errno || end - Z_STRVAL_P(value) != Z_STRLEN_P(value)) {
                         return FAILURE;
                     }

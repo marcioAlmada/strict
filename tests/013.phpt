@@ -13,14 +13,18 @@ $values = array(
     "100.0",   # fail
     100.0,     # pass
     100.1,     # fail
+    "0xFF",    # pass
+    "0b11001"  # pass
 );
 
 foreach ($values as $value) {
     var_dump(cast_wrapper(strict\integer, $value));
 }
 ?>
---EXPECTF--
+--EXPECT--
 int(100)
 NULL
 int(100)
 NULL
+int(255)
+int(25)
