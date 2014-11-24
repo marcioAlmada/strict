@@ -593,7 +593,7 @@ static inline int php_strict_cast(int type, zval *value, zval *return_value TSRM
     return FAILURE;
 }
 
-/* {{{ proto integer strict_cast(int type, mixed value) */
+/* {{{ proto mixed strict_cast(int type, mixed value) */
 PHP_FUNCTION(strict_cast) {
     zend_long type;
     zval *value = NULL;
