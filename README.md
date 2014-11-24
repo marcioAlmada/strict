@@ -23,7 +23,7 @@ Passing the wrong type parameter will result in a recoverable error being emitte
 Casting
 =======
 
-The `strict` extension introduces a set of functions for losless-or-error casting, inspiration taken from the failed safe cast RFC.
+The `strict` extension introduces losless-or-exception casting, inspiration taken from the failed safe cast RFC.
 
 The following function is introduced:
 
