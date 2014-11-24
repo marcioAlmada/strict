@@ -31,18 +31,17 @@ The following function is introduced:
 
 | Type      | Value                  | Result |
 -----------------------------------------------
-| integer   | "0xFF"                 | Pass   |
-| integer   | "0b11001"              | Pass   |
-| integer   | "100"                  | Pass   |
-| integer   | "+100"                 | Pass   |
-| integer   | "-100"                 | Pass   |
-| integer   | 0.1                    | Fail   |
-| integer   | "100 "                 | Fail   |
-| double    | "1.1"                  | Pass   |
-| double    | +1.1                   | Pass   |
-| double    | ".01"                  | Pass   |
-| double    | "0.01 "                | Fail   |
------------------------------------------------
+| integer   | `"0xFF"`               | Pass   |
+| integer   | `"0b11001"`            | Pass   |
+| integer   | `"100"`                | Pass   |
+| integer   | `"+100"`               | Pass   |
+| integer   | `"-100"`               | Pass   |
+| integer   | `0.1`                  | Fail   |
+| integer   | `"100 "`               | Fail   |
+| double    | `"1.1"`                | Pass   |
+| double    | `+1.1`                 | Pass   |
+| double    | `".01"`                | Pass   |
+| double    | `"0.01 "`              | Fail   |
 
 The aim is that if the value is coherent and casting to the specified type does not cause a loss in precision, then the cast should succeed.
 
