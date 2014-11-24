@@ -48,7 +48,7 @@ The following function is introduced:
 | boolean   | `1`                    | Pass   |
 | boolean   | `2`                    | Fail   |
 
-The aim is that if the value is coherent and casting to the specified type does not cause a loss in precision, then the cast should succeed.
+The aim is that if the value is coherent and casting to the specified type can be performed without loss, then the cast should succeed.
 
 *Type identifiers are defined as constants in the strict namespace*
 
