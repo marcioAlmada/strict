@@ -40,6 +40,7 @@ The following function is introduced:
 | integer   | `false`                | Pass   |
 | integer   | `0.1`                  | Fail   |
 | integer   | `"100 "`               | Fail   |
+| integer   | `STDIN`                | Pass   |
 | double    | `"1.1"`                | Pass   |
 | double    | `+1.1`                 | Pass   |
 | double    | `".01"`                | Pass   |
@@ -47,6 +48,8 @@ The following function is introduced:
 | boolean   | `0`                    | Pass   |
 | boolean   | `1`                    | Pass   |
 | boolean   | `2`                    | Fail   |
+| resource  | `1`                    | Pass   |
+| resource  | `"Resource id #1"`     | Fail   |
 
 The aim is that if the value is coherent and casting to the specified type can be performed without loss, then the cast should succeed.
 
