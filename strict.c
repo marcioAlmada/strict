@@ -583,9 +583,18 @@ static inline int php_strict_cast_resource(zval *value, zval *return_value TSRML
     switch (Z_TYPE_P(value)) {
         case IS_LONG:
 #if PHP_VERSION_ID >= 70000
-            Z_TYPE_INFO_P(return_value) = IS_RESOURCE_EX;
             Z_RES_P(return_value) = zend_hash_index_find_ptr(
                 &EG(regular_list), Z_LVAL_P(value));
+            if (!Z_RES_P(return_value)) {
+                Z_RES_P(return_value) = zend_hash_index_find_ptr(
+                    &EG(persistent_list), Z_LVAL_P(value));
+            }
+            
+            if (!Z_RES_P(return_value)) {
+                return FAILURE;
+            }
+            
+            Z_TYPE_INFO_P(return_value) = IS_RESOURCE_EX;
             Z_RES_P(return_value)->gc.refcount++;
 #else
             Z_TYPE_P(return_value) = IS_RESOURCE;
