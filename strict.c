@@ -32,6 +32,7 @@
 zend_class_entry *ce_StrictCastException;
 
 #if PHP_VERSION_ID >= 70000
+#define IS_BOOLEAN _IS_BOOL
 static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
 
@@ -42,7 +43,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
         zend_arg_info       *info     = &function->common.arg_info[arg-1];
 
         switch (info->type_hint) {
-            case _IS_BOOL: {
+            case IS_BOOLEAN: {
                 if (Z_TYPE_P(param) != IS_TRUE && Z_TYPE_P(param) != IS_FALSE) {
                     zend_error(E_RECOVERABLE_ERROR, 
                         "Argument %d passed to %s%s%s must be boolean, %s given",
@@ -91,7 +92,7 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
         
         if (function->common.fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
             switch (info->type_hint) {
-                case _IS_BOOL: {
+                case IS_BOOLEAN: {
                     array_init_size(params, args - arg + 1);
                     do {
                         if (Z_TYPE_P(param) != IS_TRUE && Z_TYPE_P(param) != IS_FALSE) {
@@ -145,6 +146,7 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
 #else
 #define zend_long long
 #define ZEND_STRTOL strtol
+#define IS_BOOLEAN IS_BOOL
 #ifndef EX_CV_NUM
 #define EX_CV_NUM(execute_data, offset) (execute_data->CVs + offset)
 static inline zend_uint zend_vm_stack_get_args_count(TSRMLS_D) {
@@ -189,7 +191,7 @@ static inline int php_strict_handler_recv(ZEND_OPCODE_HANDLER_ARGS) {
             case IS_STRING:
             case IS_LONG:
             case IS_DOUBLE:
-            case IS_BOOL:
+            case IS_BOOLEAN:
             case IS_RESOURCE:
                 if (info->type_hint != Z_TYPE_PP(param)) {
                     zend_error(E_RECOVERABLE_ERROR, 
@@ -244,7 +246,7 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
         case IS_DOUBLE:
         case IS_RESOURCE:
         case IS_STRING:
-        case IS_BOOL:
+        case IS_BOOLEAN:
             ptr = EX_CV_NUM(execute_data, opline->result.var);
             if (*ptr == NULL) {
                 var = zend_lookup_cv
@@ -329,11 +331,7 @@ static inline void zend_strict_compile(zend_op_array *ops) {
             }
             
             if (IS_TYPE("boolean") || IS_TYPE("bool")) {
-#if PHP_VERSION_ID >= 70000
-                SET_TYPE(_IS_BOOL);
-#else
-                SET_TYPE(IS_BOOL);
-#endif
+                SET_TYPE(IS_BOOLEAN);
             }
             
             if (IS_TYPE("resource")) {
@@ -376,13 +374,7 @@ ZEND_EXT_API zend_extension zend_extension_entry = {
 static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC) {
     switch (Z_TYPE_P(value)) {
         case IS_LONG:     ZVAL_ZVAL(return_value, value, 1, 0); break;
-#if PHP_VERSION_ID >= 70000
-        case _IS_BOOL:     
-#else
-        case IS_BOOL:     
-#endif
-            ZVAL_LONG(return_value, (zend_long) Z_BVAL_P(value)); 
-        break;
+        case IS_BOOLEAN:  ZVAL_LONG(return_value, (zend_long) Z_BVAL_P(value)); break;
         
         case IS_DOUBLE: {
             double dval = 
@@ -459,14 +451,8 @@ static inline int php_strict_cast_double(zval *value, zval *return_value TSRMLS_
     switch (Z_TYPE_P(value)) {
         case IS_DOUBLE: ZVAL_ZVAL(return_value, value, 1, 0); break;
         case IS_LONG: ZVAL_DOUBLE(return_value, (double) Z_LVAL_P(value)); break;
-#if PHP_VERSION_ID >= 70000
-        case _IS_BOOL: 
-#else
-        case IS_BOOL: 
-#endif
-            ZVAL_DOUBLE(return_value, (double) Z_BVAL_P(value)); 
-        break;
-       
+        case IS_BOOLEAN: ZVAL_DOUBLE(return_value, (double) Z_BVAL_P(value)); break;
+
         case IS_STRING: {
             double dval;
             const char   *start = &Z_STRVAL_P(value)[0], 
@@ -555,11 +541,7 @@ static inline int php_strict_cast_string(zval *value, zval *return_value TSRMLS_
 
 static inline int php_strict_cast_boolean(zval *value, zval *return_value TSRMLS_DC) {
     switch (Z_TYPE_P(value)) {
-#if PHP_VERSION_ID >= 70000
-        case _IS_BOOL:
-#else
-        case IS_BOOL:
-#endif
+        case IS_BOOLEAN:
             ZVAL_ZVAL(return_value, value, 1, 0);
         break;
         
@@ -599,11 +581,7 @@ static inline int php_strict_cast(int type, zval *value, zval *return_value TSRM
             return php_strict_cast_long(value, return_value TSRMLS_CC);
         case IS_DOUBLE:
             return php_strict_cast_double(value, return_value TSRMLS_CC);
-#if PHP_VERSION_ID >= 70000
-        case _IS_BOOL:
-#else
-        case IS_BOOL:
-#endif
+        case IS_BOOLEAN:
             return php_strict_cast_boolean(value, return_value TSRMLS_CC);
     }
     
@@ -657,18 +635,14 @@ PHP_MINIT_FUNCTION(strict) {
         &ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 #endif
 
-    REGISTER_LONG_CONSTANT("strict\\integer",       IS_LONG,     CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("strict\\int",           IS_LONG,     CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("strict\\float",         IS_DOUBLE,   CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("strict\\double",        IS_DOUBLE,   CONST_PERSISTENT);
-#if PHP_VERSION_ID >= 60000
-    REGISTER_LONG_CONSTANT("strict\\boolean",       _IS_BOOL,    CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("strict\\bool",          _IS_BOOL,    CONST_PERSISTENT);
-#else
-    REGISTER_LONG_CONSTANT("strict\\boolean",       IS_BOOL,     CONST_PERSISTENT);
-    REGISTER_LONG_CONSTANT("strict\\bool",          IS_BOOL,     CONST_PERSISTENT);
-#endif
-    REGISTER_LONG_CONSTANT("strict\\string",        IS_STRING,   CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "integer",  IS_LONG,     CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "int",      IS_LONG,     CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "double",   IS_DOUBLE,   CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "float",    IS_DOUBLE,   CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "string",   IS_STRING,   CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "boolean",  IS_BOOLEAN,  CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "bool",     IS_BOOLEAN,  CONST_PERSISTENT);
+
 	return SUCCESS;
 } /* }}} */
 
