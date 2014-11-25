@@ -620,7 +620,7 @@ PHP_FUNCTION(strict_cast) {
     }
     
     if (php_strict_cast(type, value, return_value TSRMLS_CC) != SUCCESS) {
-        zend_throw_exception_ex(ce_StrictCastException, IS_LONG TSRMLS_CC,
+        zend_throw_exception_ex(ce_StrictCastException, type TSRMLS_CC,
             "failed to cast %s to %s",
             zend_get_type_by_const(Z_TYPE_P(value)),
             zend_get_type_by_const(type));
