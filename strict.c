@@ -375,7 +375,13 @@ static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC
     switch (Z_TYPE_P(value)) {
         case IS_LONG:     ZVAL_ZVAL(return_value, value, 1, 0); break;
         case IS_BOOLEAN:  ZVAL_LONG(return_value, (zend_long) Z_BVAL_P(value)); break;
-        
+        case IS_RESOURCE: {
+#if PHP_VERSION_ID >= 70000
+            ZVAL_LONG(return_value, Z_RES_P(value)->handle);
+#else
+            ZVAL_LONG(return_value, Z_RVAL_P(value));
+#endif
+        } break;
         case IS_DOUBLE: {
             double dval = 
                 (double)(zend_long) Z_DVAL_P(value);
@@ -573,6 +579,28 @@ static inline int php_strict_cast_boolean(zval *value, zval *return_value TSRMLS
     return SUCCESS;
 }
 
+static inline int php_strict_cast_resource(zval *value, zval *return_value TSRMLS_DC) {
+    switch (Z_TYPE_P(value)) {
+        case IS_LONG:
+#if PHP_VERSION_ID >= 70000
+            Z_TYPE_INFO_P(return_value) = IS_RESOURCE;
+            Z_RES_P(return_value) = zend_hash_index_find_ptr(
+                &EG(regular_list), Z_LVAL_P(value));
+            Z_RES_P(return_value)->gc.refcount++;
+#else
+            Z_TYPE_P(return_value) = IS_RESOURCE;
+            Z_RVAL_P(return_value) = Z_LVAL_P(value);
+            zend_list_addref(return_value);
+#endif
+        break;
+        
+        default:
+            return FAILURE;
+    }
+    
+    return SUCCESS;
+}
+
 static inline int php_strict_cast(int type, zval *value, zval *return_value TSRMLS_DC) {
     switch (type) {
         case IS_STRING:
@@ -583,6 +611,8 @@ static inline int php_strict_cast(int type, zval *value, zval *return_value TSRM
             return php_strict_cast_double(value, return_value TSRMLS_CC);
         case IS_BOOLEAN:
             return php_strict_cast_boolean(value, return_value TSRMLS_CC);
+        case IS_RESOURCE:
+            return php_strict_cast_resource(value, return_value TSRMLS_CC);
     }
     
     return FAILURE;
@@ -639,9 +669,10 @@ PHP_MINIT_FUNCTION(strict) {
     REGISTER_NS_LONG_CONSTANT("strict", "int",      IS_LONG,     CONST_PERSISTENT);
     REGISTER_NS_LONG_CONSTANT("strict", "double",   IS_DOUBLE,   CONST_PERSISTENT);
     REGISTER_NS_LONG_CONSTANT("strict", "float",    IS_DOUBLE,   CONST_PERSISTENT);
-    REGISTER_NS_LONG_CONSTANT("strict", "string",   IS_STRING,   CONST_PERSISTENT);
     REGISTER_NS_LONG_CONSTANT("strict", "boolean",  IS_BOOLEAN,  CONST_PERSISTENT);
     REGISTER_NS_LONG_CONSTANT("strict", "bool",     IS_BOOLEAN,  CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "string",   IS_STRING,   CONST_PERSISTENT);
+    REGISTER_NS_LONG_CONSTANT("strict", "resource", IS_RESOURCE, CONST_PERSISTENT);
 
 	return SUCCESS;
 } /* }}} */
