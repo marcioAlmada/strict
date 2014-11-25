@@ -379,7 +379,7 @@ static inline int php_strict_cast_long(zval *value, zval *return_value TSRMLS_DC
 #if PHP_VERSION_ID >= 70000
             ZVAL_LONG(return_value, Z_RES_P(value)->handle);
 #else
-            ZVAL_LONG(return_value, Z_RVAL_P(value));
+            ZVAL_LONG(return_value, Z_LVAL_P(value));
 #endif
         } break;
         case IS_DOUBLE: {
@@ -598,8 +598,8 @@ static inline int php_strict_cast_resource(zval *value, zval *return_value TSRML
             Z_RES_P(return_value)->gc.refcount++;
 #else
             Z_TYPE_P(return_value) = IS_RESOURCE;
-            Z_RVAL_P(return_value) = Z_LVAL_P(value);
-            zend_list_addref(Z_RVAL_P(return_value));
+            Z_LVAL_P(return_value) = Z_LVAL_P(value);
+            zend_list_addref(Z_LVAL_P(return_value));
 #endif
         break;
         
