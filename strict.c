@@ -599,7 +599,7 @@ static inline int php_strict_cast_resource(zval *value, zval *return_value TSRML
 #else
             Z_TYPE_P(return_value) = IS_RESOURCE;
             Z_RVAL_P(return_value) = Z_LVAL_P(value);
-            zend_list_addref(return_value);
+            zend_list_addref(Z_RVAL_P(return_value));
 #endif
         break;
         
