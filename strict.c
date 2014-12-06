@@ -309,8 +309,13 @@ static inline void zend_strict_compile(zend_op_array *ops) {
         zend_arg_info *hint = ops->arg_info,
                       *end  = &ops->arg_info[ops->num_args];
 
+#if PHP_VERSION_ID >= 70000
 #define IS_TYPE(n) \
     (zend_binary_strncasecmp(hint->class_name->val, hint->class_name->len, ZEND_STRL(n), sizeof(n)-1) == SUCCESS)
+#else
+#define IS_TYPE(n) \
+    (zend_binary_strncasecmp(hint->class_name, hint->class_name_len, ZEND_STRL(n), sizeof(n)-1) == SUCCESS)
+#endif
 
 #define SET_TYPE(n) \
     hint->type_hint = n; \
