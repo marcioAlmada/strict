@@ -24,7 +24,7 @@
 extern zend_module_entry strict_module_entry;
 #define phpext_strict_ptr &strict_module_entry
 
-#define PHP_STRICT_VERSION "0.4.0"
+#define PHP_STRICT_VERSION "0.4.1"
 #define PHP_STRICT_EXTNAME "strict"
 #define PHP_STRICT_AUTHOR  "Joe Watkins <krakjoe@php.net>"
 #define PHP_STRICT_URL     "https://github.com/krakjoe/strict"

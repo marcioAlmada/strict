@@ -82,7 +82,7 @@ static inline int php_strict_handler_variadic(ZEND_OPCODE_HANDLER_ARGS) {
     const zend_function *function = EX(func);
     const zend_op       *opline   = EX(opline);
     uint32_t             arg      = opline->op1.num;
-    uint32_t             args     = EX(num_args);
+    uint32_t             args     = EX_NUM_ARGS();
     zval                *params   = EX_VAR(opline->result.var);
     zend_arg_info       *info     = &function->common.arg_info[arg-1];
     
@@ -310,7 +310,7 @@ static inline void zend_strict_compile(zend_op_array *ops) {
                       *end  = &ops->arg_info[ops->num_args];
 
 #define IS_TYPE(n) \
-    (zend_binary_strncasecmp(hint->class_name, hint->class_name_len, ZEND_STRL(n), sizeof(n)-1) == SUCCESS)
+    (zend_binary_strncasecmp(hint->class_name->val, hint->class_name->len, ZEND_STRL(n), sizeof(n)-1) == SUCCESS)
 
 #define SET_TYPE(n) \
     hint->type_hint = n; \
